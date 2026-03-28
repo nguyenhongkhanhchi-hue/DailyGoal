@@ -213,12 +213,12 @@ export function TodayTab() {
 
   if (goalsLoading || progressLoading) {
     return (
-      <div className="space-y-4 pb-20">
-        <div className="h-24 rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-500 animate-pulse" />
-        <div className="h-24 rounded-xl bg-gray-100 dark:bg-gray-800 animate-pulse" />
-        <div className="space-y-3">
+      <div className="space-y-3 pb-20">
+        <div className="h-16 rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-500 animate-pulse" />
+        <div className="h-14 rounded-xl bg-gray-100 dark:bg-gray-800 animate-pulse" />
+        <div className="space-y-2">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="h-20 rounded-xl bg-gray-100 dark:bg-gray-800 animate-pulse" />
+            <div key={i} className="h-16 rounded-xl bg-gray-100 dark:bg-gray-800 animate-pulse" />
           ))}
         </div>
       </div>
@@ -226,30 +226,30 @@ export function TodayTab() {
   }
 
   return (
-    <div className="space-y-4 pb-20">
+    <div className="space-y-3 pb-20">
       {/* Date Navigator */}
-      <Card className="border-0 shadow-lg bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white overflow-hidden">
-        <CardContent className="p-4">
+      <Card className="border-0 shadow-md bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white overflow-hidden">
+        <CardContent className="p-3">
           <div className="flex items-center justify-between">
             <Button
               variant="ghost"
               size="icon"
               onClick={handlePrevDay}
-              className="text-white/80 hover:text-white hover:bg-white/20"
+              className="text-white/80 hover:text-white hover:bg-white/20 h-8 w-8"
             >
-              <ChevronLeft className="w-5 h-5" />
+              <ChevronLeft className="w-4 h-4" />
             </Button>
             
             <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
               <PopoverTrigger asChild>
                 <button
                   type="button"
-                  className="text-center hover:opacity-90 active:opacity-100 focus:outline-none"
+                  className="text-center hover:opacity-90 active:opacity-100 focus:outline-none py-1"
                 >
-                  <p className="text-sm text-white/80">
+                  <p className="text-xs text-white/80">
                     {isToday ? 'Hôm nay' : format(selectedDate, 'EEE', { locale: vi })}
                   </p>
-                  <p className="text-lg font-bold">
+                  <p className="text-base font-bold">
                     {format(selectedDate, 'dd/MM')}
                   </p>
                 </button>
@@ -274,9 +274,9 @@ export function TodayTab() {
               variant="ghost"
               size="icon"
               onClick={handleNextDay}
-              className="text-white/80 hover:text-white hover:bg-white/20"
+              className="text-white/80 hover:text-white hover:bg-white/20 h-8 w-8"
             >
-              <ChevronRight className="w-5 h-5" />
+              <ChevronRight className="w-4 h-4" />
             </Button>
           </div>
 
@@ -285,9 +285,9 @@ export function TodayTab() {
               onClick={handleToday}
               variant="secondary"
               size="sm"
-              className="w-full mt-3 bg-white/20 text-white hover:bg-white/30 border-0"
+              className="w-full mt-2 bg-white/20 text-white hover:bg-white/30 border-0 h-7 text-xs"
             >
-              <Calendar className="w-4 h-4 mr-2" />
+              <Calendar className="w-3 h-3 mr-1" />
               Hôm nay
             </Button>
           )}
@@ -295,22 +295,22 @@ export function TodayTab() {
       </Card>
 
       {/* Progress */}
-      <Card className="border-0 shadow-lg dark:bg-gray-800">
-        <CardContent className="p-4">
-          <div className="flex items-center justify-between mb-3">
+      <Card className="border-0 shadow-md dark:bg-gray-800/80">
+        <CardContent className="p-3">
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Trophy className="w-5 h-5 text-violet-500" />
-              <span className="font-medium">{totals.completedUnits}/{totals.totalUnits}</span>
+              <Trophy className="w-4 h-4 text-violet-500" />
+              <span className="text-sm font-medium">{totals.completedUnits}/{totals.totalUnits}</span>
             </div>
-            <span className="text-2xl font-bold text-violet-600 dark:text-violet-400">
+            <span className="text-xl font-bold text-violet-600 dark:text-violet-400">
               {totals.completionRate}%
             </span>
           </div>
           
-          <div className="relative">
-            <Progress value={totals.completionRate} className="h-3 bg-gray-100 dark:bg-gray-700" />
+          <div className="relative mt-2">
+            <Progress value={totals.completionRate} className="h-2 bg-gray-100 dark:bg-gray-700" />
             <motion.div
-              className="absolute top-0 left-0 h-3 rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500"
+              className="absolute top-0 left-0 h-2 rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500"
               initial={{ width: 0 }}
               animate={{ width: `${totals.completionRate}%` }}
               transition={{ duration: 0.5 }}
