@@ -238,7 +238,7 @@ export function TodayTab() {
             </button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-2" align="center">
-            <div className="scale-125 origin-top">
+            <div className="scale-150 origin-top">
               <CalendarPicker mode="single" selected={selectedDate} onSelect={(d) => { if (!d) return; setSelectedDate(d); setFollowToday(format(d, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd')); setCalendarOpen(false); }} initialFocus />
             </div>
           </PopoverContent>
