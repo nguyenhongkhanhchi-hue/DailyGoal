@@ -81,6 +81,169 @@ export function TodayTab() {
     localStorage.setItem(`dailygoal_itemdata_${user.uid}`, JSON.stringify(itemData));
   }, [itemData, user]);
 
+  // Timer functions
+  const startTimer = async (goalId: string, itemId: string, index: number) => {
+    const itemIdKey = `${goalId}-${index}`;
+    setItemData(prev => ({
+      ...prev,
+      [itemIdKey]: {
+        ...prev[itemIdKey],
+        timerRunning: true,
+        timerStartTime: Date.now(),
+      }
+    }));
+    
+    // Also update the actual data in Firestore/localStorage via useDailyProgress hook
+    // For now, we'll just update the UI state - in a real app, this would sync with backend
+  };
+
+  const pauseTimer = async (goalId: string, itemId: string, index: number) => {
+    const itemIdKey = `${goalId}-${index}`;
+    const item = itemData[itemIdKey];
+    if (!item || !item.timerRunning) return;
+    
+    setItemData(prev => ({
+      ...prev,
+      [itemIdKey]: {
+        ...prev[itemIdKey],
+        timerRunning: false,
+        pauseTime: Date.now(),
+        timerSessions: [
+          ...(prev[itemIdKey]?.timerSessions || []),
+          {
+            id: `session_${Date.now()}`,
+            startTime: prev[itemIdKey].timerStartTime,
+            pauseTime: Date.now(),
+            isRunning: false,
+            totalPausedDuration: prev[itemIdKey].timerElapsedWhenPaused
+          }
+        ]
+      }
+    }));
+  };
+
+  const resumeTimer = async (goalId: string, itemId: string, index: number) => {
+    const itemIdKey = `${goalId}-${index}`;
+    const item = itemData[itemIdKey];
+    if (!item || item.timerRunning) return;
+    
+    const pauseDuration = Date.now() - (item.pauseTime || 0);
+    setItemData(prev => ({
+      ...prev,
+      [itemIdKey]: {
+        ...prev[itemIdKey],
+        timerRunning: true,
+        timerStartTime: Date.now(),
+        timerElapsedWhenPaused: prev[itemIdKey].timerElapsedWhenPaused + pauseDuration,
+        timerSessions: [
+          ...(prev[itemIdKey]?.timerSessions || []).map(s => 
+            s.id === prev[itemIdKey]?.timerSessions.slice(-1)[0]?.id 
+              ? {...s, resumeTime: Date.now()} 
+              : s
+          )
+        ]
+      }
+    }));
+  };
+
+  const stopTimer = async (goalId: string, itemId: string, index: number) => {
+    const itemIdKey = `${goalId}-${index}`;
+    const item = itemData[itemIdKey];
+    if (!item) return;
+    
+    const endTime = Date.now();
+    const totalElapsed = item.timerRunning 
+      ? (endTime - item.timerStartTime + item.timerElapsedWhenPaused)
+      : item.timerElapsedWhenPaused;
+    
+    setItemData(prev => ({
+      ...prev,
+      [itemIdKey]: {
+        ...prev[itemIdKey],
+        timerRunning: false,
+        timerElapsedWhenPaused: 0,
+        timerSessions: [
+          ...(prev[itemIdKey]?.timerSessions || []).map(s => 
+            s.id === prev[itemIdKey]?.timerSessions.slice(-1)[0]?.id 
+              ? {...s, endTime: Date.now(), isRunning: false} 
+              : s
+          ),
+          {
+            id: `session_${Date.now()}`,
+            startTime: item.timerStartTime || Date.now(),
+            endTime: Date.now(),
+            isRunning: false,
+            totalPausedDuration: item.timerElapsedWhenPaused
+          }
+        ].filter(Boolean)
+      }
+    }));
+    
+    // Update the checklist item in Firestore/localStorage
+    // This would normally go through the useDailyProgress hook
+  };
+
+  // Financial transaction functions
+  const addFinancialTransaction = async (goalId: string, itemId: string, type: 'income' | 'expense', amount: number, description: string) => {
+    // Find the item index
+    const itemIndex = parseInt(itemId.split('-')[1]) || 0;
+    const itemIdKey = `${goalId}-${itemIndex}`;
+    
+    setItemData(prev => ({
+      ...prev,
+      [itemIdKey]: {
+        ...prev[itemIdKey],
+        financialTransactions: [
+          ...(prev[itemIdKey]?.financialTransactions || []),
+          {
+            id: `tx_${Date.now()}`,
+            type,
+            amount,
+            description,
+            date: format(new Date(), 'yyyy-MM-dd'),
+            createdAt: new Date()
+          }
+        ]
+      }
+    }));
+  };
+
+  const removeFinancialTransaction = async (goalId: string, itemId: string, transactionId: string) => {
+    const itemIndex = parseInt(itemId.split('-')[1]) || 0;
+    const itemIdKey = `${goalId}-${itemIndex}`;
+    
+    setItemData(prev => ({
+      ...prev,
+      [itemIdKey]: {
+        ...prev[itemIdKey],
+        financialTransactions: (prev[itemIdKey]?.financialTransactions || []).filter(tx => tx.id !== transactionId)
+      }
+    }));
+  };
+
+  // Helper functions
+  const formatDate = (timestamp: number) => {
+    return new Date(timestamp).toLocaleDateString('vi-VN', {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  const formatDuration = (ms: number) => {
+    const totalSeconds = Math.floor(ms / 1000);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  };
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('vi-VN', {
+      style: 'currency',
+      currency: 'VND'
+    }).format(amount);
+  };
+
   useEffect(() => {
     if (!followToday) return;
 
