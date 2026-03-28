@@ -74,10 +74,30 @@ export function TodayTab() {
   }, [followToday]);
 
   const selectedDateKey = useMemo(() => format(selectedDate, 'yyyy-MM-dd'), [selectedDate]);
+  const currentWeekDay = selectedDate.getDay();
+  
   const goalsForSelectedDate = useMemo(() => {
     const dayEnd = endOfDay(selectedDate);
-    return goals.filter(g => g.createdAt <= dayEnd && (!g.deletedAt || g.deletedAt > dayEnd));
-  }, [goals, selectedDate]);
+    return goals.filter(g => {
+      if (g.createdAt > dayEnd) return false;
+      if (g.deletedAt && g.deletedAt <= dayEnd) return false;
+      
+      const scheduleType = g.scheduleType || 'daily';
+      
+      if (scheduleType === 'daily') return true;
+      
+      if (scheduleType === 'specific') {
+        return g.specificDate === selectedDateKey;
+      }
+      
+      if (scheduleType === 'weekly') {
+        const weekDays = g.weekDays || [];
+        return weekDays.includes(currentWeekDay);
+      }
+      
+      return true;
+    });
+  }, [goals, selectedDate, selectedDateKey, currentWeekDay]);
 
   const progressByGoalId = useMemo(() => {
     const map = new Map<string, DailyProgress>();

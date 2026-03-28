@@ -33,12 +33,27 @@ const colorOptions = [
   { id: '#84cc16' },
 ];
 
+import type { Goal, ScheduleType } from '@/types';
+
 interface GoalFormData {
   title: string;
   icon: string;
   color: string;
   hasSubtasks: boolean;
+  scheduleType: ScheduleType;
+  specificDate: string;
+  weekDays: number[];
 }
+
+const weekDaysOptions = [
+  { value: 0, label: 'CN' },
+  { value: 1, label: 'T2' },
+  { value: 2, label: 'T3' },
+  { value: 3, label: 'T4' },
+  { value: 4, label: 'T5' },
+  { value: 5, label: 'T6' },
+  { value: 6, label: 'T7' },
+];
 
 export function SettingsTab() {
   const { logout } = useAuth();
@@ -50,11 +65,22 @@ export function SettingsTab() {
     icon: 'target',
     color: '#8b5cf6',
     hasSubtasks: false,
+    scheduleType: 'daily',
+    specificDate: '',
+    weekDays: [],
   });
 
   const handleOpenAdd = () => {
     setEditingGoal(null);
-    setFormData({ title: '', icon: 'target', color: '#8b5cf6', hasSubtasks: false });
+    setFormData({
+      title: '',
+      icon: 'target',
+      color: '#8b5cf6',
+      hasSubtasks: false,
+      scheduleType: 'daily',
+      specificDate: '',
+      weekDays: [],
+    });
     setIsDialogOpen(true);
   };
 
@@ -65,8 +91,20 @@ export function SettingsTab() {
       icon: goal.icon || 'target',
       color: goal.color || '#8b5cf6',
       hasSubtasks: goal.hasSubtasks || false,
+      scheduleType: goal.scheduleType || 'daily',
+      specificDate: goal.specificDate || '',
+      weekDays: goal.weekDays || [],
     });
     setIsDialogOpen(true);
+  };
+
+  const toggleWeekDay = (day: number) => {
+    setFormData(prev => ({
+      ...prev,
+      weekDays: prev.weekDays.includes(day)
+        ? prev.weekDays.filter(d => d !== day)
+        : [...prev.weekDays, day].sort(),
+    }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -285,6 +323,79 @@ export function SettingsTab() {
                 Cho phép có việc con
               </Label>
             </div>
+
+            <div>
+              <Label className="text-sm font-medium mb-2 block">Lặp lại</Label>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, scheduleType: 'daily' })}
+                  className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
+                    formData.scheduleType === 'daily'
+                      ? 'bg-violet-500 text-white'
+                      : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
+                  }`}
+                >
+                  Hàng ngày
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, scheduleType: 'weekly' })}
+                  className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
+                    formData.scheduleType === 'weekly'
+                      ? 'bg-violet-500 text-white'
+                      : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
+                  }`}
+                >
+                  Hàng tuần
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, scheduleType: 'specific' })}
+                  className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
+                    formData.scheduleType === 'specific'
+                      ? 'bg-violet-500 text-white'
+                      : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
+                  }`}
+                >
+                  Ngày cụ thể
+                </button>
+              </div>
+            </div>
+
+            {formData.scheduleType === 'weekly' && (
+              <div>
+                <Label className="text-sm text-gray-500 mb-2 block">Chọn ngày trong tuần</Label>
+                <div className="flex gap-1">
+                  {weekDaysOptions.map((day) => (
+                    <button
+                      key={day.value}
+                      type="button"
+                      onClick={() => toggleWeekDay(day.value)}
+                      className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        formData.weekDays.includes(day.value)
+                          ? 'bg-violet-500 text-white'
+                          : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
+                      }`}
+                    >
+                      {day.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {formData.scheduleType === 'specific' && (
+              <div>
+                <Label className="text-sm text-gray-500 mb-2 block">Chọn ngày</Label>
+                <Input
+                  type="date"
+                  value={formData.specificDate}
+                  onChange={(e) => setFormData({ ...formData, specificDate: e.target.value })}
+                  className="w-full"
+                />
+              </div>
+            )}
 
             <div className="flex gap-2 pt-2">
               <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)} className="flex-1">

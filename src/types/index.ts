@@ -5,6 +5,8 @@ export interface User {
   photoURL: string | null;
 }
 
+export type ScheduleType = 'daily' | 'weekly' | 'specific';
+
 export interface Goal {
   id: string;
   userId: string;
@@ -13,6 +15,9 @@ export interface Goal {
   icon?: string;
   color?: string;
   hasSubtasks?: boolean;
+  scheduleType?: ScheduleType;
+  specificDate?: string;
+  weekDays?: number[];
   createdAt: Date;
   updatedAt: Date;
   deletedAt?: Date;
