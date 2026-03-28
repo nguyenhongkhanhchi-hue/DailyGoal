@@ -8,31 +8,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { useGoals } from '@/hooks/useGoals';
 import { useAuth } from '@/contexts/AuthContext';
 import { Plus, Trash2, Edit2, Target, Palette, LogOut } from 'lucide-react';
-import type { Goal } from '@/types';
-
-const iconOptions = [
-  { id: 'droplets', emoji: '💧' },
-  { id: 'book', emoji: '📚' },
-  { id: 'dumbbell', emoji: '💪' },
-  { id: 'moon', emoji: '🌙' },
-  { id: 'sun', emoji: '☀️' },
-  { id: 'heart', emoji: '❤️' },
-  { id: 'star', emoji: '⭐' },
-  { id: 'zap', emoji: '⚡' },
-  { id: 'target', emoji: '🎯' },
-];
-
-const colorOptions = [
-  { id: '#8b5cf6' },
-  { id: '#ec4899' },
-  { id: '#3b82f6' },
-  { id: '#10b981' },
-  { id: '#f59e0b' },
-  { id: '#ef4444' },
-  { id: '#06b6d4' },
-  { id: '#84cc16' },
-];
-
 import type { Goal, ScheduleType } from '@/types';
 
 interface GoalFormData {
