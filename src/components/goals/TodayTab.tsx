@@ -237,8 +237,10 @@ export function TodayTab() {
               {isToday ? 'Hôm nay' : format(selectedDate, 'EEEE, dd/MM', { locale: vi })}
             </button>
           </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="center">
-            <CalendarPicker mode="single" selected={selectedDate} onSelect={(d) => { if (!d) return; setSelectedDate(d); setFollowToday(format(d, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd')); setCalendarOpen(false); }} initialFocus />
+          <PopoverContent className="w-auto p-2" align="center">
+            <div className="scale-110 origin-center">
+              <CalendarPicker mode="single" selected={selectedDate} onSelect={(d) => { if (!d) return; setSelectedDate(d); setFollowToday(format(d, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd')); setCalendarOpen(false); }} initialFocus />
+            </div>
           </PopoverContent>
         </Popover>
         
