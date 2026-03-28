@@ -5,10 +5,10 @@ import { useGoals } from '@/hooks/useGoals';
 import { useDailyProgress } from '@/hooks/useDailyProgress';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Calendar as CalendarPicker } from '@/components/ui/calendar';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
+import { CustomCalendar } from './CustomCalendar';
 import { useAuth } from '@/contexts/AuthContext';
 import { 
   CheckCircle2, 
@@ -237,8 +237,8 @@ export function TodayTab() {
               {isToday ? 'Hôm nay' : format(selectedDate, 'EEEE, dd/MM', { locale: vi })}
             </button>
           </DialogTrigger>
-          <DialogContent className="max-w-sm mx-auto p-0">
-            <CalendarPicker mode="single" selected={selectedDate} onSelect={(d) => { if (!d) return; setSelectedDate(d); setFollowToday(format(d, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd')); setCalendarOpen(false); }} initialFocus />
+          <DialogContent className="max-w-sm mx-auto p-6 bg-white dark:bg-gray-900 rounded-2xl">
+            <CustomCalendar selected={selectedDate} onSelect={(d) => { setSelectedDate(d); setFollowToday(format(d, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd')); setCalendarOpen(false); }} />
           </DialogContent>
         </Dialog>
         
