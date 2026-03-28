@@ -387,8 +387,8 @@ export function TodayTab() {
                           <IconComponent />
                         </div>
 
-                        <div className="flex-1 min-w-0">
-                          <p className={`font-medium ${
+                        <div className="flex-1">
+                          <p className={`font-medium break-words ${
                           isCompleted ? 'text-gray-400 line-through' : 'text-gray-900 dark:text-gray-100'
                         }`}>
                           {goal.title}
@@ -434,7 +434,7 @@ export function TodayTab() {
                                 checked={item.done}
                                 onCheckedChange={() => toggleChecklistItem(goal.id, item.id)}
                               />
-                              <span className={`flex-1 text-sm ${item.done ? 'line-through text-gray-400' : 'text-gray-700 dark:text-gray-200'}`}>
+                              <span className={`flex-1 text-sm break-words ${item.done ? 'line-through text-gray-400' : 'text-gray-700 dark:text-gray-200'}`}>
                                 {item.text}
                               </span>
                               <Button
