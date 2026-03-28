@@ -388,11 +388,11 @@ export function TodayTab() {
                         </div>
 
                         <div className="flex-1 min-w-0">
-                          <p className={`font-medium truncate ${
+                          <p className={`font-medium ${
                           isCompleted ? 'text-gray-400 line-through' : 'text-gray-900 dark:text-gray-100'
                         }`}>
                           {goal.title}
-                          </p>
+                        </p>
                           <p className="text-xs text-gray-500 dark:text-gray-400">{doneCount}/{totalCount}</p>
                         </div>
 

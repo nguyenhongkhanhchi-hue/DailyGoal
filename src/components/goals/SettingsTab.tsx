@@ -155,7 +155,7 @@ export function SettingsTab() {
                       </span>
                     </div>
 
-                    <p className="flex-1 font-medium">{goal.title}</p>
+                    <p className="flex-1 font-medium break-words">{goal.title}</p>
 
                     <div className="flex gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                       <Button
