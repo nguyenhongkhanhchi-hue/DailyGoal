@@ -69,12 +69,73 @@ interface ItemData {
 }
 
 // Helper functions
+const motivationalMessages = [
+  "Cố lên, bạn đang làm rất tốt!",
+  "Tiếp tục nào, thành công đang chờ bạn!",
+  "Bạn thật tuyệt vời, đừng bỏ cuộc!",
+  "Một bước nhỏ, thành công lớn!",
+  "Bạn có thể làm được, tin vào bản thân!",
+  "Thời gian trôi qua, bạn đang tiến bộ!",
+  "Giữ vững phong độ, bạn sắp hoàn thành!",
+  "Làm tốt lắm, hãy tiếp tục phát huy!",
+];
+
 const formatTime = (ms: number) => {
   const totalSeconds = Math.floor(ms / 1000);
   const hours = Math.floor(totalSeconds / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
   const seconds = totalSeconds % 60;
   return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+};
+
+const playTickSound = () => {
+  try {
+    const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const oscillator = audioCtx.createOscillator();
+    const gainNode = audioCtx.createGain();
+    
+    oscillator.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+    
+    oscillator.frequency.value = 800;
+    oscillator.type = 'sine';
+    
+    gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.05);
+    
+    oscillator.start(audioCtx.currentTime);
+    oscillator.stop(audioCtx.currentTime + 0.05);
+  } catch (e) {}
+};
+
+const speakAnnouncement = (taskName: string, elapsedSeconds: number) => {
+  if (!('speechSynthesis' in window)) return;
+  
+  const minutes = Math.floor(elapsedSeconds / 60);
+  const seconds = elapsedSeconds % 60;
+  
+  let timeStr = '';
+  if (minutes > 0) {
+    timeStr = `${minutes} phút ${seconds} giây`;
+  } else {
+    timeStr = `${seconds} giây`;
+  }
+  
+  const motivation = motivationalMessages[Math.floor(Math.random() * motivationalMessages.length)];
+  const message = `Bạn đã làm việc ${taskName} được ${timeStr}. ${motivation}`;
+  
+  const utterance = new SpeechSynthesisUtterance(message);
+  utterance.lang = 'vi-VN';
+  utterance.rate = 0.9;
+  utterance.pitch = 1.1;
+  
+  const voices = window.speechSynthesis.getVoices();
+  const vietnameseVoice = voices.find(v => v.lang.includes('vi'));
+  if (vietnameseVoice) {
+    utterance.voice = vietnameseVoice;
+  }
+  
+  window.speechSynthesis.speak(utterance);
 };
 
 const formatCurrency = (amount: number) => {
@@ -118,9 +179,35 @@ export function TodayTab() {
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentTime(Date.now());
+      
+      // Play tick sound and announcements for running timers
+      let hasRunningTimer = false;
+      Object.entries(itemData).forEach(([key, data]) => {
+        if (data.timerRunning) {
+          hasRunningTimer = true;
+          const elapsed = Date.now() - data.timerStartTime + data.timerElapsedWhenPaused;
+          const elapsedSeconds = Math.floor(elapsed / 1000);
+          
+          // Play tick sound
+          playTickSound();
+          
+          // Announce every 30 seconds
+          if (elapsedSeconds > 0 && elapsedSeconds % 30 === 0) {
+            const [goalId, indexStr] = key.split('-');
+            const index = parseInt(indexStr);
+            const goal = goals.find(g => g.id === goalId);
+            const goalProgress = progressByGoalId.get(goalId);
+            const checklist = goalProgress?.checklist ?? [];
+            const item = checklist[index];
+            if (item) {
+              speakAnnouncement(item.text, elapsedSeconds);
+            }
+          }
+        }
+      });
     }, 1000);
     return () => clearInterval(interval);
-  }, []);
+  }, [itemData, goals, progressByGoalId]);
 
   // Load item data from localStorage
   useEffect(() => {
