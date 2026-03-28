@@ -1,9 +1,10 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useGoals } from '@/hooks/useGoals';
 import { useProgressHistory } from '@/hooks/useDailyProgress';
+import { useAuth } from '@/contexts/AuthContext';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   LineChart, Line, PieChart, Pie, Cell, Area, AreaChart
@@ -47,6 +48,21 @@ export function StatsTab() {
     }
   }, [viewMode, currentDate]);
 
+  const { user } = useAuth();
+  const [allItemData, setAllItemData] = useState<Record<string, any>>({});
+
+  useEffect(() => {
+    if (!user) return;
+    const stored = localStorage.getItem(`dailygoal_itemdata_${user.uid}`);
+    if (stored) {
+      try {
+        setAllItemData(JSON.parse(stored));
+      } catch (e) {
+        setAllItemData({});
+      }
+    }
+  }, [user]);
+
   const { history } = useProgressHistory(startDate, endDate);
 
   const stats = useMemo(() => {
@@ -83,6 +99,60 @@ export function StatsTab() {
 
     return { dailyData, averageRate, totalCompletedGoals: totals.completed, totalPossibleGoals: totals.total };
   }, [history, goals, startDate, endDate]);
+
+  const financialStats = useMemo(() => {
+    const dateStart = format(startDate, 'yyyy-MM-dd');
+    const dateEnd = format(endDate, 'yyyy-MM-dd');
+    
+    let totalIncome = 0;
+    let totalExpense = 0;
+    let totalTimeMs = 0;
+    
+    Object.values(allItemData).forEach((item: any) => {
+      if (!item.financialTransactions || !item.timerSessions) return;
+      
+      item.financialTransactions.forEach((tx: any) => {
+        if (tx.date >= dateStart && tx.date <= dateEnd) {
+          if (tx.type === 'income') {
+            totalIncome += tx.amount;
+          } else {
+            totalExpense += tx.amount;
+          }
+        }
+      });
+      
+      item.timerSessions.forEach((session: any) => {
+        if (session.startTime) {
+          const sessionDate = format(new Date(session.startTime), 'yyyy-MM-dd');
+          if (sessionDate >= dateStart && sessionDate <= dateEnd) {
+            if (session.endTime) {
+              totalTimeMs += (session.endTime - session.startTime);
+            }
+          }
+        }
+      });
+      
+      if (item.timerRunning && item.timerStartTime) {
+        const sessionDate = format(new Date(item.timerStartTime), 'yyyy-MM-dd');
+        if (sessionDate >= dateStart && sessionDate <= dateEnd) {
+          totalTimeMs += (Date.now() - item.timerStartTime + item.timerElapsedWhenPaused);
+        }
+      }
+    });
+    
+    return { totalIncome, totalExpense, totalTimeMs, netAmount: totalIncome - totalExpense };
+  }, [allItemData, startDate, endDate]);
+
+  const formatTime = (ms: number) => {
+    const totalSeconds = Math.floor(ms / 1000);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    return `${hours}h ${minutes}p`;
+  };
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
+  };
 
   const pieData = useMemo(() => {
     const completed = stats.totalCompletedGoals;
@@ -175,7 +245,7 @@ export function StatsTab() {
         </CardContent>
       </Card>
 
-      {/* Stats */}
+      {/* Stats - Goal Progress */}
       <div className="grid grid-cols-2 gap-3">
         <Card className="border-0 shadow-md bg-gradient-to-br from-violet-500 to-purple-600 text-white">
           <CardContent className="p-4">
@@ -195,6 +265,44 @@ export function StatsTab() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Stats - Time & Money */}
+      <div className="grid grid-cols-3 gap-3">
+        <Card className="border-0 shadow-md bg-gradient-to-br from-green-500 to-emerald-600 text-white">
+          <CardContent className="p-4">
+            <p className="text-2xl font-bold">{formatCurrency(financialStats.totalIncome)}</p>
+            <p className="text-xs text-white/70">Tổng Thu</p>
+          </CardContent>
+        </Card>
+        <Card className="border-0 shadow-md bg-gradient-to-br from-red-500 to-orange-600 text-white">
+          <CardContent className="p-4">
+            <p className="text-2xl font-bold">{formatCurrency(financialStats.totalExpense)}</p>
+            <p className="text-xs text-white/70">Tổng Chi</p>
+          </CardContent>
+        </Card>
+        <Card className={`border-0 shadow-md bg-gradient-to-br ${financialStats.netAmount >= 0 ? 'from-blue-500 to-cyan-600' : 'from-gray-500 to-slate-600'} text-white`}>
+          <CardContent className="p-4">
+            <p className="text-2xl font-bold">{financialStats.netAmount >= 0 ? '+' : ''}{formatCurrency(financialStats.netAmount)}</p>
+            <p className="text-xs text-white/70">Còn lại</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Time Stats */}
+      <Card className="border-0 shadow-md bg-gradient-to-br from-violet-500 to-indigo-600 text-white">
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-2xl font-bold">{formatTime(financialStats.totalTimeMs)}</p>
+              <p className="text-xs text-white/70">Tổng thời gian làm việc</p>
+            </div>
+            <div className="text-right">
+              <p className="text-lg font-medium">{Math.round(financialStats.totalTimeMs / 3600000)}h</p>
+              <p className="text-xs text-white/70">giờ</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Chart */}
       <Card className="border-0 shadow-lg dark:bg-gray-800">

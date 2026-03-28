@@ -90,6 +90,7 @@ const playTickSound = () => {
   try {
     const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
     if (!AudioContextClass) return;
+    
     const audioCtx = new AudioContextClass();
     const oscillator = audioCtx.createOscillator();
     const gainNode = audioCtx.createGain();
@@ -100,15 +101,15 @@ const playTickSound = () => {
     oscillator.frequency.value = 800;
     oscillator.type = 'sine';
     
-    gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
-    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.05);
+    gainNode.gain.setValueAtTime(0.08, audioCtx.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.03);
     
     oscillator.start(audioCtx.currentTime);
-    oscillator.stop(audioCtx.currentTime + 0.05);
+    oscillator.stop(audioCtx.currentTime + 0.03);
     
-    setTimeout(() => {
+    oscillator.onended = () => {
       audioCtx.close();
-    }, 100);
+    };
   } catch (e) {}
 };
 
@@ -639,8 +640,8 @@ export function TodayTab() {
             </Card>
           </motion.div>
         ) : (
-          <AnimatePresence mode="popLayout">
-            {orderedGoals.map((goal, index) => {
+          <AnimatePresence mode="sync">
+            {orderedGoals.map((goal) => {
               const goalProgress = progressByGoalId.get(goal.id);
               const checklist = goalProgress?.checklist ?? [];
               const doneCount = checklist.length > 0 ? checklist.filter(i => i.done).length : (goalProgress?.completed ? 1 : 0);
@@ -652,10 +653,10 @@ export function TodayTab() {
               return (
                 <motion.div
                   key={goal.id}
-                  initial={{ opacity: 0, y: 20 }}
+                  initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
-                  transition={{ delay: index * 0.05 }}
+                  exit={{ opacity: 0, scale: 0.98 }}
+                  transition={{ duration: 0.15 }}
                   layout
                 >
                   <Card 
