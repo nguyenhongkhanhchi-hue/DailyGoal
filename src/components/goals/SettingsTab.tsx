@@ -37,6 +37,7 @@ interface GoalFormData {
   title: string;
   icon: string;
   color: string;
+  hasSubtasks: boolean;
 }
 
 export function SettingsTab() {
@@ -48,11 +49,12 @@ export function SettingsTab() {
     title: '',
     icon: 'target',
     color: '#8b5cf6',
+    hasSubtasks: false,
   });
 
   const handleOpenAdd = () => {
     setEditingGoal(null);
-    setFormData({ title: '', icon: 'target', color: '#8b5cf6' });
+    setFormData({ title: '', icon: 'target', color: '#8b5cf6', hasSubtasks: false });
     setIsDialogOpen(true);
   };
 
@@ -62,6 +64,7 @@ export function SettingsTab() {
       title: goal.title,
       icon: goal.icon || 'target',
       color: goal.color || '#8b5cf6',
+      hasSubtasks: goal.hasSubtasks || false,
     });
     setIsDialogOpen(true);
   };
@@ -239,6 +242,19 @@ export function SettingsTab() {
                   </button>
                 ))}
               </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="hasSubtasks"
+                checked={formData.hasSubtasks}
+                onChange={(e) => setFormData({ ...formData, hasSubtasks: e.target.checked })}
+                className="w-4 h-4 rounded border-gray-300 text-violet-500 focus:ring-violet-500"
+              />
+              <Label htmlFor="hasSubtasks" className="text-sm font-normal">
+                Cho phép có việc con
+              </Label>
             </div>
 
             <div className="flex gap-2 pt-2">

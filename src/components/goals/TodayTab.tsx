@@ -401,7 +401,7 @@ export function TodayTab() {
                           variant="ghost"
                           size="icon"
                           onClick={() => setOpenGoalIds(prev => ({ ...prev, [goal.id]: !prev[goal.id] }))}
-                          className={`h-9 w-9 ${isOpen ? 'text-violet-600 dark:text-violet-400' : 'text-gray-400'} hover:bg-gray-100/60 dark:hover:bg-gray-700/40`}
+                          className={`h-9 w-9 ${isOpen ? 'text-violet-600 dark:text-violet-400' : 'text-gray-400'} hover:bg-gray-100/60 dark:hover:bg-gray-700/40 ${!goal.hasSubtasks ? 'hidden' : ''}`}
                         >
                           <ChevronDown className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
                         </Button>
@@ -426,7 +426,7 @@ export function TodayTab() {
                         </Button>
                       </div>
 
-                      {isOpen && (
+                      {isOpen && goal.hasSubtasks && (
                         <div className="mt-3 space-y-2 rounded-lg border border-gray-200/70 dark:border-gray-700/60 bg-white/50 dark:bg-gray-900/30 p-3">
                           {checklist.map((item) => (
                             <div key={item.id} className="flex items-center gap-2">

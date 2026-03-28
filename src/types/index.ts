@@ -12,6 +12,7 @@ export interface Goal {
   description?: string;
   icon?: string;
   color?: string;
+  hasSubtasks?: boolean;
   createdAt: Date;
   updatedAt: Date;
   deletedAt?: Date;
