@@ -23,11 +23,36 @@ export interface Goal {
   deletedAt?: Date;
 }
 
+export interface TimerSession {
+  id: string;
+  checklistItemId: string;
+  date: string; // YYYY-MM-DD format
+  startTime: number; // timestamp
+  pauseTime?: number; // timestamp when paused
+  resumeTime?: number; // timestamp when resumed
+  endTime?: number; // timestamp when ended
+  isRunning: boolean;
+  totalPausedDuration: number; // total time paused in milliseconds
+}
+
+export interface FinancialTransaction {
+  id: string;
+  checklistItemId: string;
+  date: string; // YYYY-MM-DD format
+  type: 'income' | 'expense';
+  amount: number;
+  description: string;
+  category?: string;
+  createdAt: Date;
+}
+
 export interface ChecklistItem {
   id: string;
   text: string;
   done: boolean;
   createdAt: number;
+  timerSessions?: TimerSession[];
+  financialTransactions?: FinancialTransaction[];
 }
 
 export interface DailyProgress {

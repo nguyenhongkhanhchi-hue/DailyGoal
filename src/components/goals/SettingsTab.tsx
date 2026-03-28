@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,11 +7,40 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useGoals } from '@/hooks/useGoals';
 import { useAuth } from '@/contexts/AuthContext';
-import { Plus, Trash2, Edit2, Target, Palette, LogOut } from 'lucide-react';
-import type { Goal, ScheduleType } from '@/types';
+import { Plus, Trash2, Edit2, Target, LogOut, DollarSign, Clock } from 'lucide-react';
+import type { Goal } from '@/types';
+import { format } from 'date-fns';
+
+interface GoalFormData {
+  title: string;
+  icon: string;
+  color: string;
+  hasSubtasks: boolean;
+  scheduleType: 'daily' | 'weekly' | 'specific';
+  specificDate: string;
+  weekDays: number[];
+}
+
+interface MonthlyExpense {
+  id: string;
+  month: string;
+  amount: number;
+  description: string;
+}
+
+interface GoalFormData {
+  title: string;
+  icon: string;
+  color: string;
+  hasSubtasks: boolean;
+  scheduleType: 'daily' | 'weekly' | 'specific';
+  specificDate: string;
+  weekDays: number[];
+}
 
 const iconOptions = [
-  { id: 'droplets', emoji: '💧' },
+  { id: 'target', emoji: '🎯' },
+  { id: 'water', emoji: '💧' },
   { id: 'book', emoji: '📚' },
   { id: 'dumbbell', emoji: '💪' },
   { id: 'moon', emoji: '🌙' },
@@ -19,7 +48,27 @@ const iconOptions = [
   { id: 'heart', emoji: '❤️' },
   { id: 'star', emoji: '⭐' },
   { id: 'zap', emoji: '⚡' },
-  { id: 'target', emoji: '🎯' },
+  { id: 'run', emoji: '🏃' },
+  { id: 'sleep', emoji: '😴' },
+  { id: 'food', emoji: '🍎' },
+  { id: 'money', emoji: '💰' },
+  { id: 'work', emoji: '💼' },
+  { id: 'code', emoji: '💻' },
+  { id: 'phone', emoji: '📱' },
+  { id: 'music', emoji: '🎵' },
+  { id: 'art', emoji: '🎨' },
+  { id: 'camera', emoji: '📷' },
+  { id: 'plane', emoji: '✈️' },
+  { id: 'home', emoji: '🏠' },
+  { id: 'car', emoji: '🚗' },
+  { id: 'gift', emoji: '🎁' },
+  { id: 'sport', emoji: '⚽' },
+  { id: 'health', emoji: '🏥' },
+  { id: 'school', emoji: '🏫' },
+  { id: 'coffee', emoji: '☕' },
+  { id: 'plant', emoji: '🌱' },
+  { id: 'fire', emoji: '🔥' },
+  { id: 'money2', emoji: '💵' },
 ];
 
 const colorOptions = [
@@ -44,10 +93,11 @@ const weekDaysOptions = [
 ];
 
 export function SettingsTab() {
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
   const { goals, loading, addGoal, updateGoal, deleteGoal } = useGoals();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingGoal, setEditingGoal] = useState<string | null>(null);
+  const [expenseDialogOpen, setExpenseDialogOpen] = useState(false);
   const [formData, setFormData] = useState<GoalFormData>({
     title: '',
     icon: 'target',
@@ -57,13 +107,79 @@ export function SettingsTab() {
     specificDate: '',
     weekDays: [],
   });
+  
+  const [monthlyExpenses, setMonthlyExpenses] = useState<MonthlyExpense[]>([]);
+  const [newExpenseAmount, setNewExpenseAmount] = useState('');
+  const [newExpenseDesc, setNewExpenseDesc] = useState('');
+  
+  useEffect(() => {
+    if (user) {
+      const stored = localStorage.getItem(`dailygoal_monthly_expenses_${user.uid}`);
+      if (stored) {
+        setMonthlyExpenses(JSON.parse(stored));
+      }
+    }
+  }, [user]);
+  
+  useEffect(() => {
+    if (user && monthlyExpenses.length > 0) {
+      localStorage.setItem(`dailygoal_monthly_expenses_${user.uid}`, JSON.stringify(monthlyExpenses));
+    }
+  }, [monthlyExpenses, user]);
+  
+  const currentMonth = format(new Date(), 'yyyy-MM');
+  const currentMonthExpenses = monthlyExpenses.filter(e => e.month === currentMonth);
+  const totalMonthlyExpense = currentMonthExpenses.reduce((sum, e) => sum + e.amount, 0);
+  
+  const secondsInMonth = 30 * 24 * 60 * 60;
+  const costPerSecond = totalMonthlyExpense > 0 ? totalMonthlyExpense / secondsInMonth : 0;
+  
+  useEffect(() => {
+    if (user) {
+      localStorage.setItem(`dailygoal_cost_per_second_${user.uid}`, costPerSecond.toString());
+    }
+  }, [costPerSecond, user]);
+  
+  const addMonthlyExpense = () => {
+    const amount = parseInt(newExpenseAmount.replace(/[^\d]/g, ''), 10);
+    if (isNaN(amount) || amount <= 0 || !newExpenseDesc.trim()) return;
+    
+    const newExpense: MonthlyExpense = {
+      id: `expense_${Date.now()}`,
+      month: currentMonth,
+      amount,
+      description: newExpenseDesc,
+    };
+    
+    setMonthlyExpenses(prev => [...prev, newExpense]);
+    setNewExpenseAmount('');
+    setNewExpenseDesc('');
+  };
+  
+  const removeMonthlyExpense = (id: string) => {
+    setMonthlyExpenses(prev => prev.filter(e => e.id !== id));
+  };
+  
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
+  };
+  
+  const formatNumberInput = (value: string): string => {
+    const num = value.replace(/[^\d]/g, '');
+    if (!num) return '';
+    return parseInt(num, 10).toLocaleString('vi-VN');
+  };
+  
+  const getRandomColor = () => {
+    return colorOptions[Math.floor(Math.random() * colorOptions.length)].id;
+  };
 
   const handleOpenAdd = () => {
     setEditingGoal(null);
     setFormData({
       title: '',
       icon: 'target',
-      color: '#8b5cf6',
+      color: getRandomColor(),
       hasSubtasks: false,
       scheduleType: 'daily',
       specificDate: '',
@@ -87,10 +203,10 @@ export function SettingsTab() {
   };
 
   const toggleWeekDay = (day: number) => {
-    setFormData(prev => ({
+    setFormData((prev: GoalFormData) => ({
       ...prev,
       weekDays: prev.weekDays.includes(day)
-        ? prev.weekDays.filter(d => d !== day)
+        ? prev.weekDays.filter((d: number) => d !== day)
         : [...prev.weekDays, day].sort(),
     }));
   };
@@ -241,38 +357,108 @@ export function SettingsTab() {
         </AnimatePresence>
       )}
 
+      {/* Chi phí thời gian Section */}
+      <Card className="border-0 shadow-lg rounded-xl">
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-semibold flex items-center gap-2">
+              <Clock className="w-5 h-5 text-violet-500" />
+              Chi phí thời gian
+            </h3>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setExpenseDialogOpen(true)}
+            >
+              <DollarSign className="w-4 h-4" />
+            </Button>
+          </div>
+          
+          <div className="space-y-2">
+            <div className="flex justify-between items-center text-sm">
+              <span className="text-gray-500 dark:text-gray-400">Tổng chi tháng này:</span>
+              <span className="font-semibold text-red-600">{formatCurrency(totalMonthlyExpense)}</span>
+            </div>
+            <div className="flex justify-between items-center text-sm">
+              <span className="text-gray-500 dark:text-gray-400">Chi phí mỗi giây:</span>
+              <span className="font-semibold text-violet-600">{costPerSecond.toFixed(2)} VND</span>
+            </div>
+            {currentMonthExpenses.length > 0 && (
+              <div className="mt-2 pt-2 border-t border-gray-100 dark:border-gray-700">
+                <p className="text-xs text-gray-500 mb-1">Các khoản chi:</p>
+                <div className="space-y-1">
+                  {currentMonthExpenses.map(expense => (
+                    <div key={expense.id} className="flex items-center justify-between text-xs">
+                      <span className="truncate flex-1">{expense.description}</span>
+                      <div className="flex items-center gap-1">
+                        <span className="text-red-600">{formatCurrency(expense.amount)}</span>
+                        <button onClick={() => removeMonthlyExpense(expense.id)} className="text-gray-400 hover:text-red-500">
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Add/Edit Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{editingGoal ? 'Sửa' : 'Thêm'}</DialogTitle>
-          </DialogHeader>
+        <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto p-0">
+          <div className="bg-gradient-to-r from-violet-500 to-fuchsia-500 p-4 rounded-t-xl">
+            <DialogTitle className="text-white text-lg font-semibold">
+              {editingGoal ? 'Sửa mục tiêu' : 'Thêm mục tiêu mới'}
+            </DialogTitle>
+          </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <Label>Tên</Label>
+          <form onSubmit={handleSubmit} className="p-4 space-y-5">
+            {/* Preview */}
+            <div className="flex items-center justify-center gap-4 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-xl">
+              <div 
+                className="w-14 h-14 rounded-xl flex items-center justify-center text-2xl shadow-lg"
+                style={{ backgroundColor: `${formData.color}20` }}
+              >
+                {iconOptions.find(i => i.id === formData.icon)?.emoji || '🎯'}
+              </div>
+              <div className="flex-1">
+                <p className="text-sm text-gray-500">Tên mục tiêu</p>
+                <p className="font-medium text-gray-900 dark:text-gray-100">{formData.title || '...'}</p>
+              </div>
+              <div 
+                className="px-3 py-1 rounded-full text-xs font-medium text-white"
+                style={{ backgroundColor: formData.color }}
+              >
+                {formData.scheduleType === 'daily' ? 'Hàng ngày' : formData.scheduleType === 'weekly' ? 'Hàng tuần' : 'Ngày cụ thể'}
+              </div>
+            </div>
+
+            {/* Name Input */}
+            <div className="space-y-2">
+              <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">Tên mục tiêu</Label>
               <Input
                 value={formData.title}
                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                placeholder="Ví dụ: Uống nước"
+                placeholder="Ví dụ: Uống nước, Tập thể dục..."
+                className="h-10 text-base"
               />
             </div>
 
-            <div>
-              <Label className="flex items-center gap-2">
-                <Palette className="w-4 h-4" />
-                Icon
-              </Label>
-              <div className="grid grid-cols-5 gap-2 mt-2">
+            {/* Icon Grid */}
+            <div className="space-y-2">
+              <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">Chọn biểu tượng</Label>
+              <div className="grid grid-cols-6 gap-2 p-2 bg-gray-50 dark:bg-gray-800/50 rounded-xl">
                 {iconOptions.map((icon) => (
                   <button
                     key={icon.id}
                     type="button"
                     onClick={() => setFormData({ ...formData, icon: icon.id })}
-                    className={`p-2 rounded-lg border-2 ${
+                    className={`p-2 rounded-lg transition-all ${
                       formData.icon === icon.id
-                        ? 'border-violet-500 bg-violet-50'
-                        : 'border-gray-200'
+                        ? 'bg-violet-500 text-white shadow-md scale-110'
+                        : 'hover:bg-gray-200 dark:hover:bg-gray-700'
                     }`}
                   >
                     <span className="text-xl">{icon.emoji}</span>
@@ -281,89 +467,46 @@ export function SettingsTab() {
               </div>
             </div>
 
-            <div>
-              <Label>Màu</Label>
-              <div className="grid grid-cols-4 gap-2 mt-2">
-                {colorOptions.map((color) => (
+            {/* Schedule Type */}
+            <div className="space-y-2">
+              <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">Lặp lại</Label>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { id: 'daily', label: 'Hàng ngày', icon: '📅' },
+                  { id: 'weekly', label: 'Hàng tuần', icon: '🔄' },
+                  { id: 'specific', label: 'Ngày cụ thể', icon: '📆' },
+                ].map((option) => (
                   <button
-                    key={color.id}
+                    key={option.id}
                     type="button"
-                    onClick={() => setFormData({ ...formData, color: color.id })}
-                    className={`p-1 rounded-lg border-2 ${
-                      formData.color === color.id ? 'border-gray-900' : 'border-transparent'
+                    onClick={() => setFormData({ ...formData, scheduleType: option.id as any })}
+                    className={`py-3 px-2 rounded-xl text-sm font-medium transition-all flex flex-col items-center gap-1 ${
+                      formData.scheduleType === option.id
+                        ? 'bg-violet-500 text-white shadow-lg'
+                        : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
                     }`}
                   >
-                    <div className="w-full h-8 rounded" style={{ backgroundColor: color.id }} />
+                    <span className="text-lg">{option.icon}</span>
+                    {option.label}
                   </button>
                 ))}
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                id="hasSubtasks"
-                checked={formData.hasSubtasks}
-                onChange={(e) => setFormData({ ...formData, hasSubtasks: e.target.checked })}
-                className="w-4 h-4 rounded border-gray-300 text-violet-500 focus:ring-violet-500"
-              />
-              <Label htmlFor="hasSubtasks" className="text-sm font-normal">
-                Cho phép có việc con
-              </Label>
-            </div>
-
-            <div>
-              <Label className="text-sm font-medium mb-2 block">Lặp lại</Label>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setFormData({ ...formData, scheduleType: 'daily' })}
-                  className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
-                    formData.scheduleType === 'daily'
-                      ? 'bg-violet-500 text-white'
-                      : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
-                  }`}
-                >
-                  Hàng ngày
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFormData({ ...formData, scheduleType: 'weekly' })}
-                  className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
-                    formData.scheduleType === 'weekly'
-                      ? 'bg-violet-500 text-white'
-                      : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
-                  }`}
-                >
-                  Hàng tuần
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFormData({ ...formData, scheduleType: 'specific' })}
-                  className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
-                    formData.scheduleType === 'specific'
-                      ? 'bg-violet-500 text-white'
-                      : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
-                  }`}
-                >
-                  Ngày cụ thể
-                </button>
-              </div>
-            </div>
-
+            {/* Weekly Days */}
             {formData.scheduleType === 'weekly' && (
-              <div>
-                <Label className="text-sm text-gray-500 mb-2 block">Chọn ngày trong tuần</Label>
-                <div className="flex gap-1">
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">Chọn ngày trong tuần</Label>
+                <div className="flex gap-1 p-1 bg-gray-100 dark:bg-gray-800 rounded-xl">
                   {weekDaysOptions.map((day) => (
                     <button
                       key={day.value}
                       type="button"
                       onClick={() => toggleWeekDay(day.value)}
-                      className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${
                         formData.weekDays.includes(day.value)
-                          ? 'bg-violet-500 text-white'
-                          : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
+                          ? 'bg-violet-500 text-white shadow'
+                          : 'text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
                       }`}
                     >
                       {day.label}
@@ -373,27 +516,87 @@ export function SettingsTab() {
               </div>
             )}
 
+            {/* Specific Date */}
             {formData.scheduleType === 'specific' && (
-              <div>
-                <Label className="text-sm text-gray-500 mb-2 block">Chọn ngày</Label>
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">Chọn ngày</Label>
                 <Input
                   type="date"
                   value={formData.specificDate}
                   onChange={(e) => setFormData({ ...formData, specificDate: e.target.value })}
-                  className="w-full"
+                  className="h-10"
                 />
               </div>
             )}
 
+            {/* Has Subtasks */}
+            <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-xl">
+              <div className="w-10 h-10 rounded-lg bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center">
+                <span className="text-lg">📋</span>
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-medium text-gray-900 dark:text-gray-100">Việc con</p>
+                <p className="text-xs text-gray-500">Cho phép thêm nhiều việc nhỏ</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setFormData({ ...formData, hasSubtasks: !formData.hasSubtasks })}
+                className={`w-12 h-6 rounded-full transition-colors relative ${
+                  formData.hasSubtasks ? 'bg-violet-500' : 'bg-gray-300 dark:bg-gray-600'
+                }`}
+              >
+                <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform shadow ${
+                  formData.hasSubtasks ? 'left-7' : 'left-1'
+                }`} />
+              </button>
+            </div>
+
+            {/* Actions */}
             <div className="flex gap-2 pt-2">
-              <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)} className="flex-1">
+              <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)} className="flex-1 h-10">
                 Hủy
               </Button>
-              <Button type="submit" className="flex-1 bg-gradient-to-r from-violet-500 to-fuchsia-500" disabled={!formData.title.trim()}>
+              <Button type="submit" className="flex-1 h-10 bg-gradient-to-r from-violet-500 to-fuchsia-500 font-medium" disabled={!formData.title.trim()}>
                 {editingGoal ? 'Lưu' : 'Thêm'}
               </Button>
             </div>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Expense Dialog */}
+      <Dialog open={expenseDialogOpen} onOpenChange={setExpenseDialogOpen}>
+        <DialogContent className="max-w-sm mx-auto">
+          <DialogHeader>
+            <DialogTitle>Thêm chi phí tháng {format(new Date(), 'MM/yyyy')}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label className="text-sm">Khoản chi</Label>
+              <Input
+                value={newExpenseDesc}
+                onChange={(e) => setNewExpenseDesc(e.target.value)}
+                placeholder="Ví dụ: Tiền nhà, điện nước..."
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label className="text-sm">Số tiền</Label>
+              <Input
+                value={newExpenseAmount}
+                onChange={(e) => setNewExpenseAmount(formatNumberInput(e.target.value))}
+                placeholder="0"
+                className="mt-1"
+              />
+            </div>
+            <Button 
+              className="w-full bg-gradient-to-r from-violet-500 to-fuchsia-500"
+              onClick={addMonthlyExpense}
+              disabled={!newExpenseDesc.trim() || !newExpenseAmount.trim()}
+            >
+              Thêm
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
