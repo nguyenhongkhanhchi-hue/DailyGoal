@@ -93,8 +93,19 @@ export function SettingsTab() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="w-8 h-8 border-4 border-violet-200 border-t-violet-600 rounded-full animate-spin" />
+      <div className="space-y-4 pb-20">
+        <div className="flex justify-between">
+          <div className="h-6 w-32 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+          <div className="flex gap-2">
+            <div className="h-9 w-9 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+            <div className="h-9 w-9 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+          </div>
+        </div>
+        <div className="space-y-3">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-16 rounded-xl bg-gray-100 dark:bg-gray-800 animate-pulse" />
+          ))}
+        </div>
       </div>
     );
   }
@@ -129,12 +140,30 @@ export function SettingsTab() {
 
       {/* Goals List */}
       {activeGoals.length === 0 ? (
-        <Card className="border-0 shadow-md dark:bg-gray-800">
-          <CardContent className="p-8 text-center">
-            <Target className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-            <p className="text-gray-500">Chưa có mục tiêu</p>
-          </CardContent>
-        </Card>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+        >
+          <Card className="border-0 shadow-md dark:bg-gray-800/80">
+            <CardContent className="p-10 text-center">
+              <div className="relative inline-block mb-4">
+                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-violet-100 to-fuchsia-100 dark:from-violet-900/30 dark:to-fuchsia-900/30 flex items-center justify-center">
+                  <Target className="w-10 h-10 text-violet-400" />
+                </div>
+                <motion.div
+                  animate={{ scale: [1, 1.1, 1] }}
+                  transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+                  className="absolute -top-1 -right-1 w-8 h-8 rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500 flex items-center justify-center shadow-lg"
+                >
+                  <Plus className="w-4 h-4 text-white" />
+                </motion.div>
+              </div>
+              <p className="text-gray-600 dark:text-gray-300 font-medium text-lg mb-2">Chưa có mục tiêu nào</p>
+              <p className="text-gray-400 dark:text-gray-500 text-sm">Nhấn nút + để tạo mục tiêu đầu tiên của bạn</p>
+            </CardContent>
+          </Card>
+        </motion.div>
       ) : (
         <AnimatePresence mode="popLayout">
           {activeGoals.map((goal, index) => (
