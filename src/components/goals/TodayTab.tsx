@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Calendar as CalendarPicker } from '@/components/ui/calendar';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 import { useAuth } from '@/contexts/AuthContext';
 import { 
   CheckCircle2, 
@@ -231,18 +231,16 @@ export function TodayTab() {
           <ChevronLeft className="w-4 h-4" />
         </Button>
         
-        <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
-          <PopoverTrigger asChild>
+        <Dialog open={calendarOpen} onOpenChange={setCalendarOpen}>
+          <DialogTrigger asChild>
             <button type="button" className="flex-1 py-1.5 px-3 rounded-lg bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white text-center text-sm font-medium shadow-md">
               {isToday ? 'Hôm nay' : format(selectedDate, 'EEEE, dd/MM', { locale: vi })}
             </button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-2" align="center">
-            <div className="scale-150 origin-top">
-              <CalendarPicker mode="single" selected={selectedDate} onSelect={(d) => { if (!d) return; setSelectedDate(d); setFollowToday(format(d, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd')); setCalendarOpen(false); }} initialFocus />
-            </div>
-          </PopoverContent>
-        </Popover>
+          </DialogTrigger>
+          <DialogContent className="max-w-sm mx-auto p-0">
+            <CalendarPicker mode="single" selected={selectedDate} onSelect={(d) => { if (!d) return; setSelectedDate(d); setFollowToday(format(d, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd')); setCalendarOpen(false); }} initialFocus />
+          </DialogContent>
+        </Dialog>
         
         <Button variant="ghost" size="icon" onClick={handleNextDay} className="h-7 w-7 text-violet-600 dark:text-violet-400">
           <ChevronRight className="w-4 h-4" />
