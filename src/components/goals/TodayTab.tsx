@@ -42,6 +42,63 @@ const iconMap: Record<string, React.ElementType> = {
   default: () => <span className="text-xl">✨</span>,
 };
 
+interface TimerSession {
+  id: string;
+  startTime: number;
+  pauseTime?: number;
+  resumeTime?: number;
+  endTime?: number;
+  isRunning: boolean;
+}
+
+interface FinancialTransaction {
+  id: string;
+  type: 'income' | 'expense';
+  amount: number;
+  description: string;
+  date: string;
+}
+
+interface ItemData {
+  timerSessions: TimerSession[];
+  financialTransactions: FinancialTransaction[];
+  timerRunning: boolean;
+  timerStartTime: number;
+  timerElapsedWhenPaused: number;
+  pauseTime?: number;
+}
+
+// Helper functions
+const formatTime = (ms: number) => {
+  const totalSeconds = Math.floor(ms / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+};
+
+const formatCurrency = (amount: number) => {
+  return new Intl.NumberFormat('vi-VN', {
+    style: 'currency',
+    currency: 'VND'
+  }).format(amount);
+};
+
+const formatDate = (timestamp: number) => {
+  return new Date(timestamp).toLocaleDateString('vi-VN', {
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+};
+
+const formatDuration = (ms: number) => {
+  const totalSeconds = Math.floor(ms / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+};
+
 export function TodayTab() {
   const { user } = useAuth();
   const [selectedDate, setSelectedDate] = useState(() => new Date());
@@ -54,13 +111,16 @@ export function TodayTab() {
   const [draggingGoalId, setDraggingGoalId] = useState<string | null>(null);
   const [openGoalIds, setOpenGoalIds] = useState<Record<string, boolean>>({});
   const [newChecklistText, setNewChecklistText] = useState<Record<string, string>>({});
-  const [itemData, setItemData] = useState<Record<string, {
-    timerSessions: Array<{id: string; startTime: number; pauseTime?: number; resumeTime?: number; endTime?: number; isRunning: boolean; totalPausedDuration: number}>;
-    financialTransactions: Array<{id: string; type: 'income' | 'expense'; amount: number; description: string; date: string; createdAt: Date}>;
-    timerRunning: boolean;
-    timerStartTime: number;
-    timerElapsedWhenPaused: number;
-  }>>({});
+  const [itemData, setItemData] = useState<Record<string, ItemData>>({});
+  const [currentTime, setCurrentTime] = useState(Date.now());
+
+  // Update current time every second for live timer display
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(Date.now());
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Load item data from localStorage
   useEffect(() => {
@@ -82,117 +142,88 @@ export function TodayTab() {
   }, [itemData, user]);
 
   // Timer functions
-  const startTimer = async (goalId: string, itemId: string, index: number) => {
+  const startTimer = (goalId: string, index: number) => {
     const itemIdKey = `${goalId}-${index}`;
     setItemData(prev => ({
       ...prev,
       [itemIdKey]: {
-        ...prev[itemIdKey],
+        ...(prev[itemIdKey] ?? { timerSessions: [], financialTransactions: [], timerRunning: false, timerStartTime: 0, timerElapsedWhenPaused: 0 }),
         timerRunning: true,
         timerStartTime: Date.now(),
       }
     }));
-    
-    // Also update the actual data in Firestore/localStorage via useDailyProgress hook
-    // For now, we'll just update the UI state - in a real app, this would sync with backend
   };
 
-  const pauseTimer = async (goalId: string, itemId: string, index: number) => {
+  const pauseTimer = (goalId: string, index: number) => {
     const itemIdKey = `${goalId}-${index}`;
-    const item = itemData[itemIdKey];
-    if (!item || !item.timerRunning) return;
-    
-    setItemData(prev => ({
-      ...prev,
-      [itemIdKey]: {
-        ...prev[itemIdKey],
-        timerRunning: false,
-        pauseTime: Date.now(),
-        timerSessions: [
-          ...(prev[itemIdKey]?.timerSessions || []),
-          {
-            id: `session_${Date.now()}`,
-            startTime: prev[itemIdKey].timerStartTime,
-            pauseTime: Date.now(),
-            isRunning: false,
-            totalPausedDuration: prev[itemIdKey].timerElapsedWhenPaused
-          }
-        ]
-      }
-    }));
+    setItemData(prev => {
+      const data = prev[itemIdKey];
+      if (!data || !data.timerRunning) return prev;
+      const now = Date.now();
+      return {
+        ...prev,
+        [itemIdKey]: {
+          ...data,
+          timerRunning: false,
+          pauseTime: now,
+          timerElapsedWhenPaused: now - data.timerStartTime + data.timerElapsedWhenPaused,
+        }
+      };
+    });
   };
 
-  const resumeTimer = async (goalId: string, itemId: string, index: number) => {
+  const resumeTimer = (goalId: string, index: number) => {
     const itemIdKey = `${goalId}-${index}`;
-    const item = itemData[itemIdKey];
-    if (!item || item.timerRunning) return;
-    
-    const pauseDuration = Date.now() - (item.pauseTime || 0);
-    setItemData(prev => ({
-      ...prev,
-      [itemIdKey]: {
-        ...prev[itemIdKey],
-        timerRunning: true,
-        timerStartTime: Date.now(),
-        timerElapsedWhenPaused: prev[itemIdKey].timerElapsedWhenPaused + pauseDuration,
-        timerSessions: [
-          ...(prev[itemIdKey]?.timerSessions || []).map(s => 
-            s.id === prev[itemIdKey]?.timerSessions.slice(-1)[0]?.id 
-              ? {...s, resumeTime: Date.now()} 
-              : s
-          )
-        ]
-      }
-    }));
+    setItemData(prev => {
+      const data = prev[itemIdKey];
+      if (!data || data.timerRunning) return prev;
+      return {
+        ...prev,
+        [itemIdKey]: {
+          ...data,
+          timerRunning: true,
+          timerStartTime: Date.now(),
+        }
+      };
+    });
   };
 
-  const stopTimer = async (goalId: string, itemId: string, index: number) => {
+  const stopTimer = (goalId: string, index: number) => {
     const itemIdKey = `${goalId}-${index}`;
-    const item = itemData[itemIdKey];
-    if (!item) return;
-    
-    const endTime = Date.now();
-    const totalElapsed = item.timerRunning 
-      ? (endTime - item.timerStartTime + item.timerElapsedWhenPaused)
-      : item.timerElapsedWhenPaused;
-    
-    setItemData(prev => ({
-      ...prev,
-      [itemIdKey]: {
-        ...prev[itemIdKey],
-        timerRunning: false,
-        timerElapsedWhenPaused: 0,
-        timerSessions: [
-          ...(prev[itemIdKey]?.timerSessions || []).map(s => 
-            s.id === prev[itemIdKey]?.timerSessions.slice(-1)[0]?.id 
-              ? {...s, endTime: Date.now(), isRunning: false} 
-              : s
-          ),
-          {
-            id: `session_${Date.now()}`,
-            startTime: item.timerStartTime || Date.now(),
-            endTime: Date.now(),
-            isRunning: false,
-            totalPausedDuration: item.timerElapsedWhenPaused
-          }
-        ].filter(Boolean)
-      }
-    }));
-    
-    // Update the checklist item in Firestore/localStorage
-    // This would normally go through the useDailyProgress hook
+    setItemData(prev => {
+      const data = prev[itemIdKey];
+      if (!data) return prev;
+      const now = Date.now();
+      
+      return {
+        ...prev,
+        [itemIdKey]: {
+          ...data,
+          timerRunning: false,
+          timerStartTime: 0,
+          timerElapsedWhenPaused: 0,
+          pauseTime: undefined,
+          timerSessions: [
+            ...data.timerSessions,
+            {
+              id: `session_${now}`,
+              startTime: data.timerStartTime,
+              endTime: now,
+              isRunning: false,
+            }
+          ]
+        }
+      };
+    });
   };
 
   // Financial transaction functions
-  const addFinancialTransaction = async (goalId: string, itemId: string, type: 'income' | 'expense', amount: number, description: string) => {
-    // Find the item index
-    const itemIndex = parseInt(itemId.split('-')[1]) || 0;
-    const itemIdKey = `${goalId}-${itemIndex}`;
-    
+  const addFinancialTransaction = (goalId: string, index: number, type: 'income' | 'expense', amount: number, description: string) => {
+    const itemIdKey = `${goalId}-${index}`;
     setItemData(prev => ({
       ...prev,
       [itemIdKey]: {
-        ...prev[itemIdKey],
+        ...(prev[itemIdKey] ?? { timerSessions: [], financialTransactions: [], timerRunning: false, timerStartTime: 0, timerElapsedWhenPaused: 0 }),
         financialTransactions: [
           ...(prev[itemIdKey]?.financialTransactions || []),
           {
@@ -201,17 +232,14 @@ export function TodayTab() {
             amount,
             description,
             date: format(new Date(), 'yyyy-MM-dd'),
-            createdAt: new Date()
           }
         ]
       }
     }));
   };
 
-  const removeFinancialTransaction = async (goalId: string, itemId: string, transactionId: string) => {
-    const itemIndex = parseInt(itemId.split('-')[1]) || 0;
-    const itemIdKey = `${goalId}-${itemIndex}`;
-    
+  const removeFinancialTransaction = (goalId: string, index: number, transactionId: string) => {
+    const itemIdKey = `${goalId}-${index}`;
     setItemData(prev => ({
       ...prev,
       [itemIdKey]: {
@@ -219,29 +247,6 @@ export function TodayTab() {
         financialTransactions: (prev[itemIdKey]?.financialTransactions || []).filter(tx => tx.id !== transactionId)
       }
     }));
-  };
-
-  // Helper functions
-  const formatDate = (timestamp: number) => {
-    return new Date(timestamp).toLocaleDateString('vi-VN', {
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-
-  const formatDuration = (ms: number) => {
-    const totalSeconds = Math.floor(ms / 1000);
-    const hours = Math.floor(totalSeconds / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const seconds = totalSeconds % 60;
-    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-  };
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('vi-VN', {
-      style: 'currency',
-      currency: 'VND'
-    }).format(amount);
   };
 
   useEffect(() => {
@@ -367,7 +372,6 @@ export function TodayTab() {
     if (totals.completionRate === 100 && totals.totalUnits > 0 && !showConfetti) {
       setShowConfetti(true);
       
-      // Multiple confetti bursts
       const duration = 3000;
       const end = Date.now() + duration;
 
@@ -394,7 +398,6 @@ export function TodayTab() {
       
       frame();
       
-      // Big burst in center
       confetti({
         particleCount: 100,
         spread: 70,
@@ -599,319 +602,201 @@ export function TodayTab() {
                         </Button>
                       </div>
 
-                        {isOpen && goal.hasSubtasks && (
-                          <div className="mt-4 space-y-4">
-                            {checklist.map((item, index) => {
-                              const itemId = `${goal.id}-${index}`;
-                              const data = itemData[itemId] ?? {
-                                timerSessions: [],
-                                financialTransactions: [],
-                                timerRunning: false,
-                                timerStartTime: 0,
-                                timerElapsedWhenPaused: 0,
-                              };
-                              const elapsed = data.timerRunning
-                                                ? Date.now() - data.timerStartTime + data.timerElapsedWhenPaused
-                                                : data.timerElapsedWhenPaused;
-                              const formatTime = (ms: number) => {
-                                const totalSeconds = Math.floor(ms / 1000);
-                                const hours = Math.floor(totalSeconds / 3600);
-                                const minutes = Math.floor((totalSeconds % 3600) / 60);
-                                const seconds = totalSeconds % 60;
-                                return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-                              };
-                              return (
-                                <div key={item.id} className="border rounded-lg p-4 bg-gray-50 dark:bg-gray-900/50">
-                                  <div className="flex items-start gap-3">
-                                    <div className="flex-shrink-0 flex items-center">
-                                      <Checkbox
-                                        checked={item.done}
-                                        onCheckedChange={() => toggleChecklistItem(goal.id, item.id)}
-                                        className="h-5 w-5 border-gray-300 data-[state=checked]:bg-violet-500 data-[state=checked]:border-violet-500"
-                                      />
-                                    </div>
-                                    <div className="flex-1 space-y-2">
-                                      <div className="flex items-baseline gap-2">
-                                        <h3 className="font-medium text-gray-900 dark:text-gray-100 truncate max-w-xs">
-                                          {item.text}
-                                        </h3>
-                                        <span className={`text-xs ${item.done ? 'text-gray-400 line-through' : 'text-gray-500'}`}>
-                                          {item.done ? 'Hoàn thành' : 'Chưa làm'}
-                                        </span>
-                                      </div>
-                                      
-                                      {/* Timer Section */}
-                                      <div className="flex items-center gap-3 text-sm text-gray-600 dark:text-gray-400 mb-2">
-                                        <div className="flex items-center gap-2">
-                                          <TimerIcon className="w-4 h-4 text-violet-500" />
-                                          <span id={`timer-display-${itemId}`}>{formatTime(elapsed)}</span>
-                                        </div>
-                                        <div className="flex gap-1">
-                                          <button
-                                            onClick={() => startTimer(goal.id, item.id, index)}
-                                            disabled={data.timerRunning}
-                                            className="px-2 py-1 bg-violet-100 text-violet-800 text-xs rounded hover:bg-violet-200 dark:bg-violet-900/20 dark:text-violet-200 dark:hover:bg-violet-800/30"
-                                          >
-                                            Bắt đầu
-                                          </button>
-                                          <button
-                                            onClick={() => pauseTimer(goal.id, item.id, index)}
-                                            disabled={!data.timerRunning}
-                                            className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded hover:bg-yellow-200 dark:bg-yellow-900/20 dark:text-yellow-200 dark:hover:bg-yellow-800/30"
-                                          >
-                                            Tạm dừng
-                                          </button>
-                                          <button
-                                            onClick={() => resumeTimer(goal.id, item.id, index)}
-                                            disabled={!data.timerRunning}
-                                            className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded hover:bg-blue-200 dark:bg-blue-900/20 dark:text-blue-200 dark:hover:bg-blue-800/30"
-                                          >
-                                            Tiếp tục
-                                          </button>
-                                          <button
-                                            onClick={() => stopTimer(goal.id, item.id, index)}
-                                            disabled={!data.timerRunning}
-                                            className="px-2 py-1 bg-red-100 text-red-800 text-xs rounded hover:bg-red-200 dark:bg-red-900/20 dark:text-red-200 dark:hover:bg-red-800/30"
-                                          >
-                                            Kết thúc
-                                          </button>
-                                        </div>
-                                      </div>
-                                      
-                                      {/* Financial Transactions Section */}
-                                      <div className="mt-3 pt-2 border-t border-gray-200 dark:border-gray-700">
-                                        <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-2">Giao dịch tiền tệ</h4>
-                                        <div className="space-y-2">
-                                          {data.financialTransactions.map((tx, txIndex) => (
-                                            <div key={txIndex} className="flex items-center gap-3 px-3 py-2 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
-                                              <span className={`flex-shrink-0 w-5 h-5 rounded-full ${tx.type === 'income' ? 'bg-green-100 dark:bg-green-900/20' : 'bg-red-100 dark:bg-red-900/20'} flex items-center justify-center`}>
-                                                {tx.type === 'income' ? '+' : '-'}
-                                              </span>
-                                              <div className="flex-1">
-                                                <p className="font-medium text-gray-900 dark:text-gray-100">{tx.description || 'Giao dịch'}</p>
-                                                <p className="text-xs text-gray-500 dark:text-gray-400">
-                                                  {tx.type === 'income' ? '+' : '-'}{formatCurrency(tx.amount)}
-                                                </p>
-                                              </div>
-                                              <button
-                                                onClick={() => removeFinancialTransaction(goal.id, item.id, tx.id)}
-                                                className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-500"
-                                              >
-                                                <X className="w-3 h-3" />
-                                              </button>
-                                            </div>
-                                          )) || (
-                                            <p className="text-xs text-gray-500 dark:text-gray-400 italic">Chưa có giao dịch nào</p>
-                                          )}
-                                          <form
-                                            className="mt-3 flex gap-2"
-                                            onSubmit={async (e) => {
-                                              e.preventDefault();
-                                              const formData = new FormData(e.target);
-                                              const type = formData.get('type') as 'income' | 'expense';
-                                              const amount = parseFloat(formData.get('amount') as string);
-                                              const description = formData.get('description') as string;
-                                              
-                                              if (isNaN(amount) || amount <= 0 || !description.trim()) return;
-                                              
-                                              await addFinancialTransaction(goal.id, item.id, type, amount, description);
-                                              e.target.reset();
-                                            }}
-                                          >
-                                            <div className="flex-1 min-w-0">
-                                              <select
-                                                name="type"
-                                                className="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-violet-500 focus:border-violet-500 sm:text-sm"
-                                              >
-                                                <option value="income">Thu nhập</option>
-                                                <option value="expense">Chi phí</option>
-                                              </select>
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                              <input
-                                                name="amount"
-                                                type="number"
-                                                min="0"
-                                                step="0.01"
-                                                placeholder="Số tiền"
-                                                className="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-violet-500 focus:border-violet-500 sm:text-sm"
-                                              />
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                              <input
-                                                name="description"
-                                                type="text"
-                                                placeholder="Mô tả"
-                                                className="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-violet-500 focus:border-violet-500 sm:text-sm"
-                                              />
-                                            </div>
-                                            <button
-                                              type="submit"
-                                              className="px-4 py-2 bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white font-medium rounded-md shadow-sm hover:bg-gradient-to-r from-violet-600 to-fuchsia-600 dark:focus:ring-violet-300"
-                                            >
-                                              Thêm
-                                            </button>
-                                          </form>
-                                        </div>
-                                      </div>
-                                      
-                                      {/* Timer Sessions History */}
-                                      <div className="mt-3 pt-2 border-t border-gray-200 dark:border-gray-700">
-                                        <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-2">Lịch sử计时</h4>
-                                        <div className="space-y-1">
-                                          {data.timerSessions.map((session, sessionIndex) => (
-                                            <div key={sessionIndex} className="text-xs text-gray-500 dark:text-gray-400 flex justify-between">
-                                              <span>
-                                                {formatDate(session.startTime)} - 
-                                                {session.endTime ? formatDate(session.endTime) : 'Đang chạy'}
-                                              </span>
-                                              <span className="font-mono">
-                                                {formatDuration(session.endTime ? session.endTime - session.startTime : Date.now() - session.startTime)}
-                                              </span>
-                                            </div>
-                                          )) || (
-                                            <p className="text-xs text-gray-500 dark:text-gray-400 italic">Chưa có phiên计时 nào</p>
-                                          )}
-                                        </div>
-                                      </div>
-                                    </div>
-                                  </div>
-                                </div>
-                              );
-                            })}
+                      {isOpen && goal.hasSubtasks && (
+                        <div className="mt-4 space-y-4">
+                          {checklist.map((item, checklistIndex) => {
+                            const itemIdKey = `${goal.id}-${checklistIndex}`;
+                            const data = itemData[itemIdKey] ?? {
+                              timerSessions: [],
+                              financialTransactions: [],
+                              timerRunning: false,
+                              timerStartTime: 0,
+                              timerElapsedWhenPaused: 0,
+                            };
+                            const elapsed = data.timerRunning
+                                              ? Date.now() - data.timerStartTime + data.timerElapsedWhenPaused
+                                              : data.timerElapsedWhenPaused;
                             
-                            {/* Add New Checklist Item Form */}
-                            <form
-                              className="mt-4 pt-3 border-t border-dashed border-gray-200 dark:border-gray-600"
-                              onSubmit={async (e) => {
-                                e.preventDefault();
-                                const text = newChecklistText[goal.id] ?? '';
-                                if (!text.trim()) return;
-                                await addChecklistItem(goal.id, text);
-                                setNewChecklistText(prev => ({ ...prev, [goal.id]: '' }));
-                              }}
-                            >
-                              <div className="flex gap-2">
-                                <Input
-                                  value={newChecklistText[goal.id] ?? ''}
-                                  onChange={(e) => setNewChecklistText(prev => ({ ...prev, [goal.id]: e.target.value }))}
-                                  placeholder="Thêm việc con mới..."
-                                  className="flex-1 h-10"
-                                />
-                                <Button 
-                                  type="submit" 
-                                  className="h-10 bg-gradient-to-r from-violet-500 to-fuchsia-500"
-                                >
-                                  <Plus className="w-4 h-4" />
-                                </Button>
-                              </div>
-                            </form>
-                          </div>
-                        )}
-                                        <form
-                                          className="mt-3 flex gap-2"
-                                          onSubmit={async (e) => {
-                                            e.preventDefault();
-                                            const formData = new FormData(e.target);
-                                            const type = formData.get('type') as 'income' | 'expense';
-                                            const amount = parseFloat(formData.get('amount') as string);
-                                            const description = formData.get('description') as string;
-                                            
-                                            if (isNaN(amount) || amount <= 0 || !description.trim()) return;
-                                            
-                                            await addFinancialTransaction(goal.id, item.id, type, amount, description);
-                                            e.target.reset();
-                                          }}
+                            return (
+                              <div key={item.id} className="border rounded-lg p-4 bg-gray-50 dark:bg-gray-900/50">
+                                <div className="flex items-start gap-3">
+                                  <div className="flex-shrink-0 flex items-center">
+                                    <Checkbox
+                                      checked={item.done}
+                                      onCheckedChange={() => toggleChecklistItem(goal.id, item.id)}
+                                      className="h-5 w-5 border-gray-300 data-[state=checked]:bg-violet-500 data-[state=checked]:border-violet-500"
+                                    />
+                                  </div>
+                                  <div className="flex-1 space-y-2">
+                                    <div className="flex items-baseline gap-2">
+                                      <h3 className="font-medium text-gray-900 dark:text-gray-100 break-words">
+                                        {item.text}
+                                      </h3>
+                                      <span className={`text-xs ${item.done ? 'text-gray-400 line-through' : 'text-gray-500'}`}>
+                                        {item.done ? 'Hoàn thành' : 'Chưa làm'}
+                                      </span>
+                                    </div>
+                                    
+                                    {/* Timer Section */}
+                                    <div className="flex items-center gap-3 text-sm text-gray-600 dark:text-gray-400">
+                                      <div className="flex items-center gap-2">
+                                        <Timer className="w-4 h-4 text-violet-500" />
+                                        <span className="font-mono">{formatTime(elapsed)}</span>
+                                      </div>
+                                      <div className="flex gap-1">
+                                        <button
+                                          onClick={() => startTimer(goal.id, checklistIndex)}
+                                          disabled={data.timerRunning}
+                                          className="px-2 py-1 bg-violet-100 text-violet-800 text-xs rounded hover:bg-violet-200 disabled:opacity-50 dark:bg-violet-900/20 dark:text-violet-200 dark:hover:bg-violet-800/30"
                                         >
-                                          <div className="flex-1 min-w-0">
-                                            <select
-                                              name="type"
-                                              className="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-violet-500 focus:border-violet-500 sm:text-sm"
-                                            >
-                                              <option value="income">Thu nhập</option>
-                                              <option value="expense">Chi phí</option>
-                                            </select>
-                                          </div>
-                                          <div className="flex-1 min-w-0">
-                                            <input
-                                              name="amount"
-                                              type="number"
-                                              min="0"
-                                              step="0.01"
-                  placeholder="Số tiền"
-                                              className="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-violet-500 focus:border-violet-500 sm:text-sm"
-                                            />
-                                          </div>
-                                          <div className="flex-1 min-w-0">
-                                            <input
-                                              name="description"
-                                              type="text"
-                  placeholder="Mô tả"
-                                              className="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-violet-500 focus:border-violet-500 sm:text-sm"
-                                            />
-                                          </div>
-                                          <button
-                                            type="submit"
-                                            className="px-4 py-2 bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white font-medium rounded-md shadow-sm hover:bg-gradient-to-r from-violet-600 to-fuchsia-600 dark:focus:ring-violet-300"
-                                          >
-                                            Thêm
-                                          </button>
-                                        </form>
+                                          Bắt đầu
+                                        </button>
+                                        <button
+                                          onClick={() => pauseTimer(goal.id, checklistIndex)}
+                                          disabled={!data.timerRunning}
+                                          className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded hover:bg-yellow-200 disabled:opacity-50 dark:bg-yellow-900/20 dark:text-yellow-200 dark:hover:bg-yellow-800/30"
+                                        >
+                                          Tạm dừng
+                                        </button>
+                                        <button
+                                          onClick={() => resumeTimer(goal.id, checklistIndex)}
+                                          disabled={data.timerRunning || !data.pauseTime}
+                                          className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded hover:bg-blue-200 disabled:opacity-50 dark:bg-blue-900/20 dark:text-blue-200 dark:hover:bg-blue-800/30"
+                                        >
+                                          Tiếp tục
+                                        </button>
+                                        <button
+                                          onClick={() => stopTimer(goal.id, checklistIndex)}
+                                          disabled={!data.timerRunning && data.timerElapsedWhenPaused === 0}
+                                          className="px-2 py-1 bg-red-100 text-red-800 text-xs rounded hover:bg-red-200 disabled:opacity-50 dark:bg-red-900/20 dark:text-red-200 dark:hover:bg-red-800/30"
+                                        >
+                                          Kết thúc
+                                        </button>
                                       </div>
                                     </div>
                                     
                                     {/* Timer Sessions History */}
-                                    <div className="mt-3 pt-2 border-t border-gray-200 dark:border-gray-700">
-                                      <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-2">Lịch sử计时</h4>
-                                      <div className="space-y-1">
-                                        {item.timerSessions?.map((session, sessionIndex) => (
-                                          <div key={sessionIndex} className="text-xs text-gray-500 dark:text-gray-400 flex justify-between">
-                                            <span>
-                                              {formatDate(session.startTime)} - 
-                                              {session.endTime ? formatDate(session.endTime) : 'Đang chạy'}
-                                            </span>
-                                            <span className="font-mono">
-                                              {formatDuration(session.endTime ? session.endTime - session.startTime : Date.now() - session.startTime)}
-                                            </span>
-                                          </div>
-                                        )) || (
-                                          <p className="text-xs text-gray-500 dark:text-gray-400 italic">Chưa có phiên计时 nào</p>
-                                        )}
+                                    {data.timerSessions.length > 0 && (
+                                      <div className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-700">
+                                        <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-1 text-sm">Lịch sử phiên</h4>
+                                        <div className="space-y-1">
+                                          {data.timerSessions.map((session, sessionIndex) => (
+                                            <div key={sessionIndex} className="text-xs text-gray-500 dark:text-gray-400 flex justify-between">
+                                              <span>
+                                                {formatDate(session.startTime)} - {session.endTime ? formatDate(session.endTime) : 'Đang chạy'}
+                                              </span>
+                                              <span className="font-mono">
+                                                {formatDuration(session.endTime ? session.endTime - session.startTime : currentTime - session.startTime)}
+                                              </span>
+                                            </div>
+                                          ))}
+                                        </div>
                                       </div>
+                                    )}
+                                    
+                                    {/* Financial Transactions Section */}
+                                    <div className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-700">
+                                      <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-2 text-sm">Thu/Chi</h4>
+                                      {data.financialTransactions.length > 0 && (
+                                        <div className="space-y-1 mb-2">
+                                          {data.financialTransactions.map((tx) => (
+                                            <div key={tx.id} className="flex items-center gap-2 px-2 py-1 bg-gray-50 dark:bg-gray-800/50 rounded text-sm">
+                                              <span className={`w-5 h-5 rounded-full ${tx.type === 'income' ? 'bg-green-100 dark:bg-green-900/20 text-green-600' : 'bg-red-100 dark:bg-red-900/20 text-red-600'} flex items-center justify-center text-xs`}>
+                                                {tx.type === 'income' ? '+' : '-'}
+                                              </span>
+                                              <span className="flex-1 text-gray-700 dark:text-gray-200 truncate">{tx.description}</span>
+                                              <span className={`font-medium ${tx.type === 'income' ? 'text-green-600' : 'text-red-600'}`}>
+                                                {tx.type === 'income' ? '+' : '-'}{formatCurrency(tx.amount)}
+                                              </span>
+                                              <button
+                                                onClick={() => removeFinancialTransaction(goal.id, checklistIndex, tx.id)}
+                                                className="text-gray-400 hover:text-red-500"
+                                              >
+                                                <X className="w-3 h-3" />
+                                              </button>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      )}
+                                      <form
+                                        className="flex gap-2"
+                                        onSubmit={(e) => {
+                                          e.preventDefault();
+                                          const formData = new FormData(e.target);
+                                          const type = formData.get('type') as 'income' | 'expense';
+                                          const amount = parseFloat(formData.get('amount') as string);
+                                          const description = formData.get('description') as string;
+                                          
+                                          if (isNaN(amount) || amount <= 0 || !description.trim()) return;
+                                          
+                                          addFinancialTransaction(goal.id, checklistIndex, type, amount, description);
+                                          (e.target as HTMLFormElement).reset();
+                                        }}
+                                      >
+                                        <select
+                                          name="type"
+                                          className="px-2 py-1 bg-white border border-gray-300 rounded text-sm dark:bg-gray-800 dark:border-gray-600"
+                                        >
+                                          <option value="income">Thu</option>
+                                          <option value="expense">Chi</option>
+                                        </select>
+                                        <input
+                                          name="amount"
+                                          type="number"
+                                          min="0"
+                                          step="1000"
+                                          placeholder="Số tiền"
+                                          className="w-24 px-2 py-1 bg-white border border-gray-300 rounded text-sm dark:bg-gray-800 dark:border-gray-600"
+                                        />
+                                        <input
+                                          name="description"
+                                          type="text"
+                                          placeholder="Mô tả"
+                                          className="flex-1 px-2 py-1 bg-white border border-gray-300 rounded text-sm dark:bg-gray-800 dark:border-gray-600"
+                                        />
+                                        <button
+                                          type="submit"
+                                          className="px-2 py-1 bg-violet-500 text-white rounded text-sm hover:bg-violet-600"
+                                        >
+                                          +
+                                        </button>
+                                      </form>
                                     </div>
                                   </div>
                                 </div>
                               </div>
-                            ))}
-                            
-                            {/* Add New Checklist Item Form */}
-                            <form
-                              className="mt-4 pt-3 border-t border-dashed border-gray-200 dark:border-gray-600"
-                              onSubmit={async (e) => {
-                                e.preventDefault();
-                                const text = newChecklistText[goal.id] ?? '';
-                                if (!text.trim()) return;
-                                await addChecklistItem(goal.id, text);
-                                setNewChecklistText(prev => ({ ...prev, [goal.id]: '' }));
-                              }}
-                            >
-                              <div className="flex gap-2">
-                                <Input
-                                  value={newChecklistText[goal.id] ?? ''}
-                                  onChange={(e) => setNewChecklistText(prev => ({ ...prev, [goal.id]: e.target.value }))}
-                                  placeholder="Thêm việc con mới..."
-                                  className="flex-1 h-10"
-                                />
-                                <Button 
-                                  type="submit" 
-                                  className="h-10 bg-gradient-to-r from-violet-500 to-fuchsia-500"
-                                >
-                                  <Plus className="w-4 h-4" />
-                                </Button>
-                              </div>
-                            </form>
-                          </div>
-                        )}
+                            );
+                          })}
+                          
+                          {/* Add New Checklist Item Form */}
+                          <form
+                            className="pt-3 border-t border-dashed border-gray-200 dark:border-gray-600"
+                            onSubmit={async (e) => {
+                              e.preventDefault();
+                              const text = newChecklistText[goal.id] ?? '';
+                              if (!text.trim()) return;
+                              await addChecklistItem(goal.id, text);
+                              setNewChecklistText(prev => ({ ...prev, [goal.id]: '' }));
+                            }}
+                          >
+                            <div className="flex gap-2">
+                              <Input
+                                value={newChecklistText[goal.id] ?? ''}
+                                onChange={(e) => setNewChecklistText(prev => ({ ...prev, [goal.id]: e.target.value }))}
+                                placeholder="Thêm việc con..."
+                                className="flex-1 h-9 text-sm"
+                              />
+                              <Button 
+                                type="submit" 
+                                size="sm"
+                                className="h-9 bg-gradient-to-r from-violet-500 to-fuchsia-500"
+                              >
+                                <Plus className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </form>
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                 </motion.div>
