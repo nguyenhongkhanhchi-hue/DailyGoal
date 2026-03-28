@@ -427,33 +427,35 @@ export function TodayTab() {
                       </div>
 
                       {isOpen && goal.hasSubtasks && (
-                        <div className="mt-3 space-y-2 rounded-lg border border-gray-200/70 dark:border-gray-700/60 bg-white/50 dark:bg-gray-900/30 p-3">
+                        <div className="mt-3 rounded-lg bg-gray-50 dark:bg-gray-900/50 p-3">
                           {checklist.map((item) => (
-                            <div key={item.id} className="flex items-center gap-2">
+                            <div key={item.id} className="flex items-center gap-2 py-1.5">
                               <Checkbox
                                 checked={item.done}
                                 onCheckedChange={() => toggleChecklistItem(goal.id, item.id)}
+                                className="border-gray-300 data-[state=checked]:bg-violet-500 data-[state=checked]:border-violet-500"
                               />
-                              <span className={`flex-1 text-sm break-words ${item.done ? 'line-through text-gray-400' : 'text-gray-700 dark:text-gray-200'}`}>
+                              <span className={`flex-1 text-sm font-medium ${item.done ? 'line-through text-gray-400' : 'text-gray-700 dark:text-gray-200'}`}>
                                 {item.text}
                               </span>
                               <Button
                                 type="button"
                                 variant="ghost"
                                 size="icon"
-                                className="h-7 w-7 text-gray-400 hover:text-red-500"
+                                className="h-6 w-6 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
                                 onClick={() => removeChecklistItem(goal.id, item.id)}
                               >
-                                <X className="w-4 h-4" />
+                                <X className="w-3 h-3" />
                               </Button>
                             </div>
                           ))}
 
                           <form
-                            className="flex gap-2 pt-1"
+                            className="flex items-center gap-2 pt-2 mt-2 border-t border-dashed border-gray-200 dark:border-gray-600"
                             onSubmit={async (e) => {
                               e.preventDefault();
                               const text = newChecklistText[goal.id] ?? '';
+                              if (!text.trim()) return;
                               await addChecklistItem(goal.id, text);
                               setNewChecklistText(prev => ({ ...prev, [goal.id]: '' }));
                             }}
@@ -461,10 +463,15 @@ export function TodayTab() {
                             <Input
                               value={newChecklistText[goal.id] ?? ''}
                               onChange={(e) => setNewChecklistText(prev => ({ ...prev, [goal.id]: e.target.value }))}
-                              placeholder="Thêm checklist..."
-                              className="h-9"
+                              placeholder="Thêm việc con..."
+                              className="h-8 text-sm bg-transparent border-none focus:ring-0 focus:bg-gray-50 dark:focus:bg-gray-800"
                             />
-                            <Button type="submit" size="sm" className="h-9 bg-gradient-to-r from-violet-500 to-fuchsia-500">
+                            <Button 
+                              type="submit" 
+                              size="icon" 
+                              variant="ghost"
+                              className="h-8 w-8 text-gray-400 hover:text-violet-500"
+                            >
                               <Plus className="w-4 h-4" />
                             </Button>
                           </form>
