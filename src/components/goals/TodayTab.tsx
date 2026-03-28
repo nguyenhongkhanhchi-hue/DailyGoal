@@ -164,13 +164,17 @@ export function TodayTab() {
   const [openGoalIds, setOpenGoalIds] = useState<Record<string, boolean>>({});
   const [expandedItemIds, setExpandedItemIds] = useState<Record<string, boolean>>({});
   const [newChecklistText, setNewChecklistText] = useState<Record<string, string>>({});
-  const [tempAmounts, setTempAmounts] = useState<Record<string, string>>({});
-  const [transactionType, setTransactionType] = useState<Record<string, 'income' | 'expense'>>({});
   const [itemData, setItemData] = useState<Record<string, ItemData>>({});
   const [currentTime, setCurrentTime] = useState(Date.now());
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
   const [loadDialogOpen, setLoadDialogOpen] = useState(false);
   const [templateName, setTemplateName] = useState('');
+  const [transactionModalOpen, setTransactionModalOpen] = useState(false);
+  const [transactionGoalId, setTransactionGoalId] = useState<string | null>(null);
+  const [transactionItemIndex, setTransactionItemIndex] = useState<number | null>(null);
+  const [transactionAmount, setTransactionAmount] = useState('');
+  const [transactionDesc, setTransactionDesc] = useState('');
+  const [transactionModalType, setTransactionModalType] = useState<'income' | 'expense'>('income');
 
   const formatNumberInput = (value: string): string => {
     const num = value.replace(/[^\d]/g, '');
@@ -803,34 +807,25 @@ export function TodayTab() {
                                       <button onClick={(e) => { e.stopPropagation(); stopTimer(goal.id, checklistIndex); }} disabled={!data.timerRunning && data.timerElapsedWhenPaused === 0} className="px-2 py-1 bg-red-500 text-white text-xs rounded-lg hover:bg-red-600 disabled:opacity-50 shadow-sm">⏹</button>
                                       <span className="text-sm font-mono text-violet-600 font-bold ml-1">{formatTime(elapsed)}</span>
                                     </div>
-                                    
-                                    {/* Financial Input - Single line with toggle */}
-                                    <form className="flex items-center gap-2" onSubmit={(e) => {
-                                      e.preventDefault(); e.stopPropagation();
-                                      const fd = new FormData(e.currentTarget);
-                                      const amount = parseFormattedNumber(fd.get('amount') as string);
-                                      const desc = fd.get('desc') as string;
-                                      const type = transactionType[itemIdKey] || 'income';
-                                      if (amount > 0 && desc.trim()) { addFinancialTransaction(goal.id, checklistIndex, type, amount, desc); setTempAmounts(p => ({...p, [itemIdKey]: ''})); e.currentTarget.reset(); setTransactionType(p => ({...p, [itemIdKey]: 'income'})); }
-                                    }}>
-                                      <button 
-                                        type="button"
-                                        onClick={() => setTransactionType(p => ({...p, [itemIdKey]: 'income'}))}
-                                        className={`h-7 w-8 text-xs rounded-l-lg border transition-colors ${transactionType[itemIdKey] === 'income' ? 'bg-green-500 text-white border-green-500' : 'bg-white text-gray-500 border-gray-300 dark:bg-gray-800 dark:border-gray-600'}`}
-                                      >
-                                        +
-                                      </button>
-                                      <button 
-                                        type="button"
-                                        onClick={() => setTransactionType(p => ({...p, [itemIdKey]: 'expense'}))}
-                                        className={`h-7 w-8 text-xs rounded-r-lg border -ml-px transition-colors ${transactionType[itemIdKey] === 'expense' ? 'bg-red-500 text-white border-red-500' : 'bg-white text-gray-500 border-gray-300 dark:bg-gray-800 dark:border-gray-600'}`}
-                                      >
-                                        -
-                                      </button>
-                                      <input name="amount" value={tempAmounts[itemIdKey] || ''} onChange={(e) => setTempAmounts(p => ({...p, [itemIdKey]: formatNumberInput(e.target.value)}))} placeholder="Tiền" className="h-7 w-24 text-xs rounded-lg px-2 bg-white border dark:bg-gray-800 shadow-sm" />
-                                      <input name="desc" placeholder="Mô tả" className="h-7 flex-1 min-w-0 text-xs rounded-lg px-2 bg-white border dark:bg-gray-800 shadow-sm" />
-                                      <button type="submit" className={`h-7 w-8 text-white text-xs rounded-lg hover:opacity-90 shadow-sm ${transactionType[itemIdKey] === 'income' ? 'bg-green-500' : 'bg-red-500'}`}>✓</button>
-                                    </form>
+                                     
+                                    {/* Financial Input - Opens Modal */}
+                                    <button 
+                                      type="button"
+                                      onClick={(e) => { 
+                                        e.stopPropagation();
+                                        setTransactionGoalId(goal.id);
+                                        setTransactionItemIndex(checklistIndex);
+                                        setTransactionAmount('');
+                                        setTransactionDesc('');
+                                        setTransactionModalType('income');
+                                        setTransactionModalOpen(true);
+                                      }}
+                                      className="w-full flex items-center justify-center gap-2 h-8 rounded-lg border border-dashed border-gray-300 dark:border-gray-600 text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-xs"
+                                    >
+                                      <span className="text-green-500">+</span>
+                                      <span className="text-red-500">-</span>
+                                      <span>Thu/Chi</span>
+                                    </button>
                                     
                                     {/* Transaction Records */}
                                     {data.financialTransactions.length > 0 && (
@@ -1059,6 +1054,64 @@ export function TodayTab() {
           </Card>
         </motion.div>
       )}
+      {/* Transaction Modal */}
+      <Dialog open={transactionModalOpen} onOpenChange={setTransactionModalOpen}>
+        <DialogContent className="max-w-sm mx-auto p-4 bg-white dark:bg-gray-900 rounded-xl">
+          <DialogHeader>
+            <DialogTitle className="text-base font-medium">Thu / Chi</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={(e) => {
+            e.preventDefault();
+            const amount = parseFormattedNumber(transactionAmount);
+            const desc = transactionDesc.trim();
+            if (amount > 0 && desc) {
+              addFinancialTransaction(transactionGoalId!, transactionItemIndex!, transactionModalType, amount, desc);
+              setTransactionModalOpen(false);
+            }
+          }} className="space-y-4">
+            <div className="flex gap-1">
+              <button 
+                type="button"
+                onClick={() => setTransactionModalType('income')}
+                className={`flex-1 h-10 text-sm font-medium rounded-lg border transition-colors ${transactionModalType === 'income' ? 'bg-green-500 text-white border-green-500' : 'bg-white text-gray-600 border-gray-300 dark:bg-gray-800 dark:border-gray-600'}`}
+              >
+                + Thu
+              </button>
+              <button 
+                type="button"
+                onClick={() => setTransactionModalType('expense')}
+                className={`flex-1 h-10 text-sm font-medium rounded-lg border transition-colors ${transactionModalType === 'expense' ? 'bg-red-500 text-white border-red-500' : 'bg-white text-gray-600 border-gray-300 dark:bg-gray-800 dark:border-gray-600'}`}
+              >
+                - Chi
+              </button>
+            </div>
+            <div>
+              <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Số tiền</label>
+              <Input 
+                value={transactionAmount}
+                onChange={(e) => setTransactionAmount(formatNumberInput(e.target.value))}
+                placeholder="0"
+                className="h-10 text-sm"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Mô tả</label>
+              <Input 
+                value={transactionDesc}
+                onChange={(e) => setTransactionDesc(e.target.value)}
+                placeholder="Nhập mô tả..."
+                className="h-10 text-sm"
+              />
+            </div>
+            <Button 
+              type="submit" 
+              className={`w-full h-10 text-sm font-medium ${transactionModalType === 'income' ? 'bg-green-500 hover:bg-green-600' : 'bg-red-500 hover:bg-red-600'}`}
+            >
+              Lưu
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
