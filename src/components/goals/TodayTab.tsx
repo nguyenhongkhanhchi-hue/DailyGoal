@@ -9,13 +9,11 @@ import { Calendar as CalendarPicker } from '@/components/ui/calendar';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Progress } from '@/components/ui/progress';
 import { useAuth } from '@/contexts/AuthContext';
 import { 
   CheckCircle2, 
   Circle, 
   Trophy, 
-  Calendar,
   ChevronLeft,
   ChevronRight,
   Target,
@@ -213,12 +211,12 @@ export function TodayTab() {
 
   if (goalsLoading || progressLoading) {
     return (
-      <div className="space-y-3 pb-20">
-        <div className="h-16 rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-500 animate-pulse" />
-        <div className="h-14 rounded-xl bg-gray-100 dark:bg-gray-800 animate-pulse" />
+      <div className="space-y-2 pb-20">
+        <div className="h-10 rounded-lg bg-gradient-to-br from-violet-500 to-fuchsia-500 animate-pulse" />
+        <div className="h-8 rounded-lg bg-gray-100 dark:bg-gray-800 animate-pulse" />
         <div className="space-y-2">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="h-16 rounded-xl bg-gray-100 dark:bg-gray-800 animate-pulse" />
+            <div key={i} className="h-14 rounded-lg bg-gray-100 dark:bg-gray-800 animate-pulse" />
           ))}
         </div>
       </div>
@@ -226,101 +224,40 @@ export function TodayTab() {
   }
 
   return (
-    <div className="space-y-3 pb-20">
+    <div className="space-y-1.5 pb-20">
       {/* Date Navigator */}
-      <Card className="border-0 shadow-md bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white overflow-hidden">
-        <CardContent className="p-3">
-          <div className="flex items-center justify-between">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handlePrevDay}
-              className="text-white/80 hover:text-white hover:bg-white/20 h-8 w-8"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </Button>
-            
-            <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
-              <PopoverTrigger asChild>
-                <button
-                  type="button"
-                  className="text-center hover:opacity-90 active:opacity-100 focus:outline-none py-1"
-                >
-                  <p className="text-xs text-white/80">
-                    {isToday ? 'Hôm nay' : format(selectedDate, 'EEE', { locale: vi })}
-                  </p>
-                  <p className="text-base font-bold">
-                    {format(selectedDate, 'dd/MM')}
-                  </p>
-                </button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="center">
-                <CalendarPicker
-                  mode="single"
-                  selected={selectedDate}
-                  onSelect={(d) => {
-                    if (!d) return;
-                    setSelectedDate(d);
-                    const nextIsToday = format(d, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
-                    setFollowToday(nextIsToday);
-                    setCalendarOpen(false);
-                  }}
-                  initialFocus
-                />
-              </PopoverContent>
-            </Popover>
-            
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleNextDay}
-              className="text-white/80 hover:text-white hover:bg-white/20 h-8 w-8"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </Button>
-          </div>
-
-          {!isToday && (
-            <Button
-              onClick={handleToday}
-              variant="secondary"
-              size="sm"
-              className="w-full mt-2 bg-white/20 text-white hover:bg-white/30 border-0 h-7 text-xs"
-            >
-              <Calendar className="w-3 h-3 mr-1" />
-              Hôm nay
-            </Button>
-          )}
-        </CardContent>
-      </Card>
+      <div className="flex items-center gap-2">
+        <Button variant="ghost" size="icon" onClick={handlePrevDay} className="h-7 w-7 text-violet-600 dark:text-violet-400">
+          <ChevronLeft className="w-4 h-4" />
+        </Button>
+        
+        <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+          <PopoverTrigger asChild>
+            <button type="button" className="flex-1 py-1.5 px-3 rounded-lg bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white text-center text-sm font-medium shadow-md">
+              {isToday ? 'Hôm nay' : format(selectedDate, 'EEEE, dd/MM', { locale: vi })}
+            </button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="center">
+            <CalendarPicker mode="single" selected={selectedDate} onSelect={(d) => { if (!d) return; setSelectedDate(d); setFollowToday(format(d, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd')); setCalendarOpen(false); }} initialFocus />
+          </PopoverContent>
+        </Popover>
+        
+        <Button variant="ghost" size="icon" onClick={handleNextDay} className="h-7 w-7 text-violet-600 dark:text-violet-400">
+          <ChevronRight className="w-4 h-4" />
+        </Button>
+      </div>
 
       {/* Progress */}
-      <Card className="border-0 shadow-md dark:bg-gray-800/80">
-        <CardContent className="p-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Trophy className="w-4 h-4 text-violet-500" />
-              <span className="text-sm font-medium">{totals.completedUnits}/{totals.totalUnits}</span>
-            </div>
-            <span className="text-xl font-bold text-violet-600 dark:text-violet-400">
-              {totals.completionRate}%
-            </span>
-          </div>
-          
-          <div className="relative mt-2">
-            <Progress value={totals.completionRate} className="h-2 bg-gray-100 dark:bg-gray-700" />
-            <motion.div
-              className="absolute top-0 left-0 h-2 rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500"
-              initial={{ width: 0 }}
-              animate={{ width: `${totals.completionRate}%` }}
-              transition={{ duration: 0.5 }}
-            />
-          </div>
-        </CardContent>
-      </Card>
+      <div className="flex items-center gap-2 px-1">
+        <Trophy className="w-4 h-4 text-violet-500" />
+        <div className="flex-1 h-1.5 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+          <motion.div className="h-full rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500" initial={{ width: 0 }} animate={{ width: `${totals.completionRate}%` }} transition={{ duration: 0.5 }} />
+        </div>
+        <span className="text-xs font-bold text-violet-600 dark:text-violet-400">{totals.completedUnits}/{totals.totalUnits} · {totals.completionRate}%</span>
+      </div>
 
       {/* Goals List */}
-      <div className="space-y-3">
+      <div className="space-y-2">
         {goalsForSelectedDate.length === 0 ? (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
