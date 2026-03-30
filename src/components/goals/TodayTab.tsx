@@ -784,7 +784,7 @@ export function TodayTab() {
           {runningTimerItems.map((item) => (
             <div
               key={item.itemKey}
-              className="bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white rounded-lg px-3 py-2 shadow-lg flex items-center justify-between"
+              className="bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white rounded-2xl px-3 py-2.5 shadow-xl flex items-center justify-between border border-white/20"
             >
               <div className="flex items-center gap-2 min-w-0">
                 <motion.div
@@ -805,7 +805,7 @@ export function TodayTab() {
                     const [goalId, idx] = item.itemKey.split('-');
                     pauseTimer(goalId, parseInt(idx));
                   }}
-                  className="p-1 bg-white/20 rounded hover:bg-white/30 transition-colors"
+                  className="p-1.5 bg-white/20 rounded-xl hover:bg-white/30 transition-colors shadow-inner"
                 >
                   <Pause className="w-3.5 h-3.5" />
                 </button>
@@ -819,7 +819,7 @@ export function TodayTab() {
       {'Notification' in window && Notification.permission !== 'granted' && (
         <button
           onClick={requestPushNotification}
-          className="w-full flex items-center justify-center gap-2 py-2 px-3 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 text-blue-600 dark:text-blue-400 rounded-lg text-xs font-medium hover:from-blue-100 hover:to-indigo-100 dark:hover:from-blue-900/30 dark:hover:to-indigo-900/30 transition-colors border border-blue-200 dark:border-blue-800"
+          className="w-full flex items-center justify-center gap-2 py-2.5 px-3 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 text-blue-600 dark:text-blue-400 rounded-xl text-xs font-medium hover:from-blue-100 hover:to-indigo-100 dark:hover:from-blue-900/30 dark:hover:to-indigo-900/30 transition-colors border border-blue-200 dark:border-blue-800 shadow-sm"
         >
           <Bell className="w-3.5 h-3.5" />
           Bật thông báo đẩy để nhận nhắc nhở
@@ -834,7 +834,7 @@ export function TodayTab() {
         
         <Dialog open={calendarOpen} onOpenChange={setCalendarOpen}>
           <DialogTrigger asChild>
-            <button type="button" className="flex-1 py-1 px-2 rounded-lg bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white text-center text-xs font-medium">
+            <button type="button" className="flex-1 py-1.5 px-2 rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white text-center text-xs font-medium shadow-md hover:shadow-lg transition-shadow">
               {isToday ? 'Hôm nay' : format(selectedDate, 'dd/MM', { locale: vi })}
             </button>
           </DialogTrigger>
@@ -946,7 +946,7 @@ export function TodayTab() {
                   layout
                 >
                   <Card 
-                    className={`border-0 shadow-lg rounded-xl transition-all hover:shadow-xl active:scale-[0.99] group ${
+                    className={`border-0 shadow-xl rounded-2xl transition-all hover:shadow-2xl active:scale-[0.99] group ${
                       isCompleted 
                         ? 'bg-gradient-to-r from-violet-50 to-fuchsia-50 dark:from-violet-900/20 dark:to-fuchsia-900/20' 
                         : 'dark:bg-gray-800 bg-white'
@@ -983,8 +983,8 @@ export function TodayTab() {
                           <GripVertical className="w-4 h-4" />
                         </button>
                         <div 
-                          className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                            isCompleted ? 'bg-gradient-to-br from-violet-500 to-fuchsia-500' : 'bg-gray-100 dark:bg-gray-700'
+                          className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm ${
+                            isCompleted ? 'bg-gradient-to-br from-violet-500 to-fuchsia-500 shadow-violet-200 dark:shadow-none' : 'bg-gray-100 dark:bg-gray-700'
                           }`}
                         >
                           <IconComponent />
@@ -1059,12 +1059,12 @@ export function TodayTab() {
                                 key={item.id} 
                                 data-checklist-item
                                 onClick={() => setFocusedItemId(item.id)}
-                                className={`rounded-xl shadow-lg transition-all duration-300 cursor-pointer ${
+                                className={`rounded-2xl shadow-xl transition-all duration-300 cursor-pointer border border-transparent ${
                                   isFocused 
-                                    ? 'bg-white dark:bg-gray-800 ring-2 ring-violet-500 scale-[1.02] z-10' 
+                                    ? 'bg-white dark:bg-gray-800 ring-2 ring-violet-500 scale-[1.02] z-10 shadow-2xl border-violet-200 dark:border-violet-800' 
                                     : hasAnyFocus 
-                                      ? 'opacity-50 grayscale-[30%] bg-gray-100 dark:bg-gray-800/40' 
-                                      : 'bg-gray-50 dark:bg-gray-800/60'
+                                      ? 'opacity-50 grayscale-[30%] bg-gray-100 dark:bg-gray-800/40 shadow-md' 
+                                      : 'bg-white dark:bg-gray-800 shadow-lg hover:shadow-xl border-gray-100 dark:border-gray-700'
                                 }`}
                               >
                                 {/* Header Row - Always Visible */}
@@ -1111,7 +1111,7 @@ export function TodayTab() {
                                   <div className="p-4 space-y-4 bg-white dark:bg-gray-800 border-t border-gray-100 dark:border-gray-700">
                                     
                                     {/* ===== TIMER SECTION ===== */}
-                                    <div className="bg-gradient-to-br from-violet-50 to-fuchsia-50 dark:from-violet-900/20 dark:to-fuchsia-900/10 rounded-xl p-3">
+                                    <div className="bg-gradient-to-br from-violet-50 to-fuchsia-50 dark:from-violet-900/20 dark:to-fuchsia-900/10 rounded-2xl p-4 shadow-md border border-violet-100 dark:border-violet-800/30">
                                       <div className="flex items-center justify-between mb-3">
                                         <div className="flex items-center gap-2">
                                           <Timer className="w-4 h-4 text-violet-500" />
@@ -1125,7 +1125,7 @@ export function TodayTab() {
                                         <button 
                                           onClick={(e) => { e.stopPropagation(); startTimer(goal.id, checklistIndex); }} 
                                           disabled={data.timerRunning} 
-                                          className="flex flex-col items-center gap-1 p-2 rounded-lg bg-white dark:bg-gray-800 shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                                          className="flex flex-col items-center gap-1 p-2.5 rounded-xl bg-white dark:bg-gray-800 shadow-md border border-gray-100 dark:border-gray-700 hover:shadow-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed active:scale-95"
                                         >
                                           <Play className="w-4 h-4 text-green-500" />
                                           <span className="text-[10px] text-gray-500">Bắt đầu</span>
@@ -1133,7 +1133,7 @@ export function TodayTab() {
                                         <button 
                                           onClick={(e) => { e.stopPropagation(); pauseTimer(goal.id, checklistIndex); }} 
                                           disabled={!data.timerRunning} 
-                                          className="flex flex-col items-center gap-1 p-2 rounded-lg bg-white dark:bg-gray-800 shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                                          className="flex flex-col items-center gap-1 p-2.5 rounded-xl bg-white dark:bg-gray-800 shadow-md border border-gray-100 dark:border-gray-700 hover:shadow-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed active:scale-95"
                                         >
                                           <Pause className="w-4 h-4 text-yellow-500" />
                                           <span className="text-[10px] text-gray-500">Tạm dừng</span>
@@ -1141,7 +1141,7 @@ export function TodayTab() {
                                         <button 
                                           onClick={(e) => { e.stopPropagation(); resumeTimer(goal.id, checklistIndex); }} 
                                           disabled={data.timerRunning || !data.pauseTime} 
-                                          className="flex flex-col items-center gap-1 p-2 rounded-lg bg-white dark:bg-gray-800 shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                                          className="flex flex-col items-center gap-1 p-2.5 rounded-xl bg-white dark:bg-gray-800 shadow-md border border-gray-100 dark:border-gray-700 hover:shadow-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed active:scale-95"
                                         >
                                           <PlayCircle className="w-4 h-4 text-blue-500" />
                                           <span className="text-[10px] text-gray-500">Tiếp tục</span>
@@ -1149,7 +1149,7 @@ export function TodayTab() {
                                         <button 
                                           onClick={(e) => { e.stopPropagation(); stopTimer(goal.id, checklistIndex); }} 
                                           disabled={!data.timerRunning && data.timerElapsedWhenPaused === 0} 
-                                          className="flex flex-col items-center gap-1 p-2 rounded-lg bg-white dark:bg-gray-800 shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                                          className="flex flex-col items-center gap-1 p-2.5 rounded-xl bg-white dark:bg-gray-800 shadow-md border border-gray-100 dark:border-gray-700 hover:shadow-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed active:scale-95"
                                         >
                                           <Square className="w-4 h-4 text-red-500" />
                                           <span className="text-[10px] text-gray-500">Dừng</span>
@@ -1177,7 +1177,7 @@ export function TodayTab() {
                                     </div>
 
                                     {/* ===== FINANCIAL SECTION ===== */}
-                                    <div className="bg-gradient-to-br from-green-50 to-red-50 dark:from-green-900/10 dark:to-red-900/10 rounded-xl p-3">
+                                    <div className="bg-gradient-to-br from-green-50 to-red-50 dark:from-green-900/10 dark:to-red-900/10 rounded-2xl p-4 shadow-md border border-gray-100 dark:border-gray-700">
                                       <div className="flex items-center gap-2 mb-3">
                                         <Wallet className="w-4 h-4 text-gray-600" />
                                         <span className="text-xs font-medium text-gray-600 dark:text-gray-400">Thu chi</span>
@@ -1201,7 +1201,7 @@ export function TodayTab() {
                                             setTransactionModalType('income');
                                             setTransactionModalOpen(true);
                                           }}
-                                          className="flex items-center justify-center gap-1.5 p-2.5 rounded-lg bg-green-500 text-white hover:bg-green-600 transition-colors shadow-sm"
+                                          className="flex items-center justify-center gap-1.5 p-2.5 rounded-xl bg-green-500 text-white hover:bg-green-600 transition-colors shadow-md hover:shadow-lg active:scale-95"
                                         >
                                           <TrendingUp className="w-4 h-4" />
                                           <span className="text-xs font-medium">+ Thu</span>
@@ -1217,7 +1217,7 @@ export function TodayTab() {
                                             setTransactionModalType('expense');
                                             setTransactionModalOpen(true);
                                           }}
-                                          className="flex items-center justify-center gap-1.5 p-2.5 rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors shadow-sm"
+                                          className="flex items-center justify-center gap-1.5 p-2.5 rounded-xl bg-red-500 text-white hover:bg-red-600 transition-colors shadow-md hover:shadow-lg active:scale-95"
                                         >
                                           <TrendingDown className="w-4 h-4" />
                                           <span className="text-xs font-medium">- Chi</span>
@@ -1228,7 +1228,7 @@ export function TodayTab() {
                                       {data.financialTransactions.length > 0 && (
                                         <div className="space-y-1.5">
                                           {data.financialTransactions.slice(-5).reverse().map((tx) => (
-                                            <div key={tx.id} className="flex items-center justify-between text-xs bg-white dark:bg-gray-800/80 rounded-lg px-3 py-2 shadow-sm">
+                                            <div key={tx.id} className="flex items-center justify-between text-xs bg-white dark:bg-gray-800/80 rounded-xl px-3 py-2.5 shadow-sm border border-gray-100 dark:border-gray-700">
                                               <div className="flex items-center gap-2">
                                                 <span className={`w-2 h-2 rounded-full ${tx.type === 'income' ? 'bg-green-500' : 'bg-red-500'}`} />
                                                 <span className="text-gray-600 dark:text-gray-300 truncate max-w-[120px]">{tx.description}</span>
@@ -1243,7 +1243,7 @@ export function TodayTab() {
                                     </div>
 
                                     {/* ===== MANAGEMENT SECTION ===== */}
-                                    <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-3 space-y-3">
+                                    <div className="bg-gray-50 dark:bg-gray-800/50 rounded-2xl p-4 shadow-md border border-gray-100 dark:border-gray-700 space-y-3">
                                       {editingItemId === item.id ? (
                                         <div className="space-y-2">
                                           <Input
@@ -1298,7 +1298,7 @@ export function TodayTab() {
                                                 setEditingItemId(item.id);
                                                 setEditItemText(item.text);
                                               }}
-                                              className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium text-violet-600 bg-white dark:bg-gray-800 rounded-lg border border-violet-200 dark:border-violet-800 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-colors"
+                                              className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium text-violet-600 bg-white dark:bg-gray-800 rounded-xl border border-violet-200 dark:border-violet-800 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-colors shadow-sm hover:shadow-md active:scale-95"
                                             >
                                               <Edit2 className="w-3.5 h-3.5" />
                                               Sửa tên
@@ -1310,7 +1310,7 @@ export function TodayTab() {
                                                   removeChecklistItem(goal.id, item.id);
                                                 }
                                               }}
-                                              className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium text-red-500 bg-white dark:bg-gray-800 rounded-lg border border-red-200 dark:border-red-800 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                                              className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium text-red-500 bg-white dark:bg-gray-800 rounded-xl border border-red-200 dark:border-red-800 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors shadow-sm hover:shadow-md active:scale-95"
                                             >
                                               <Trash2 className="w-3.5 h-3.5" />
                                               Xóa
@@ -1331,7 +1331,7 @@ export function TodayTab() {
                                                   e.stopPropagation();
                                                   updateChecklistItemDeadline(goal.id, item.id, e.target.value || undefined);
                                                 }}
-                                                className="h-8 text-xs"
+                                                className="h-9 text-xs rounded-xl border-gray-200 dark:border-gray-700 shadow-sm"
                                                 onClick={(e) => e.stopPropagation()}
                                               />
                                             </div>
@@ -1347,7 +1347,7 @@ export function TodayTab() {
                                                   e.stopPropagation();
                                                   updateChecklistItemReminder(goal.id, item.id, e.target.value || undefined);
                                                 }}
-                                                className="h-8 text-xs"
+                                                className="h-9 text-xs rounded-xl border-gray-200 dark:border-gray-700 shadow-sm"
                                                 onClick={(e) => e.stopPropagation()}
                                               />
                                             </div>
@@ -1377,12 +1377,12 @@ export function TodayTab() {
                                   value={newChecklistText[goal.id] ?? ''}
                                   onChange={(e) => setNewChecklistText(prev => ({ ...prev, [goal.id]: e.target.value }))}
                                   placeholder="+ Thêm việc con mới..."
-                                  className="flex-1 h-8 text-sm bg-gray-50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700 rounded-lg px-3"
+                                  className="flex-1 h-9 text-sm bg-gray-50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700 rounded-xl px-3 shadow-sm focus:shadow-md transition-shadow"
                                 />
                                 {newChecklistText[goal.id]?.trim() && (
                                   <Button 
                                     type="submit" 
-                                    className="h-8 px-3 bg-violet-500 text-white rounded-lg hover:bg-violet-600"
+                                    className="h-9 px-3 bg-violet-500 text-white rounded-xl hover:bg-violet-600 shadow-md hover:shadow-lg transition-all"
                                   >
                                     <Plus className="w-4 h-4" />
                                   </Button>
@@ -1537,7 +1537,7 @@ export function TodayTab() {
           animate={{ opacity: 1, scale: 1 }}
           transition={{ type: 'spring' }}
         >
-          <Card className="border-0 shadow-lg bg-gradient-to-r from-amber-400 to-orange-500 text-white">
+          <Card className="border-0 shadow-2xl bg-gradient-to-r from-amber-400 to-orange-500 text-white rounded-2xl">
             <CardContent className="p-4 text-center">
               <motion.div
                 animate={{ rotate: [0, 10, -10, 0] }}
@@ -1569,14 +1569,14 @@ export function TodayTab() {
               <button 
                 type="button"
                 onClick={() => setTransactionModalType('income')}
-                className={`flex-1 h-10 text-sm font-medium rounded-lg border transition-colors ${transactionModalType === 'income' ? 'bg-green-500 text-white border-green-500' : 'bg-white text-gray-600 border-gray-300 dark:bg-gray-800 dark:border-gray-600'}`}
+                className={`flex-1 h-10 text-sm font-medium rounded-xl border-2 transition-all shadow-sm ${transactionModalType === 'income' ? 'bg-green-500 text-white border-green-500 shadow-md' : 'bg-white text-gray-600 border-gray-300 dark:bg-gray-800 dark:border-gray-600'}`}
               >
                 + Thu
               </button>
               <button 
                 type="button"
                 onClick={() => setTransactionModalType('expense')}
-                className={`flex-1 h-10 text-sm font-medium rounded-lg border transition-colors ${transactionModalType === 'expense' ? 'bg-red-500 text-white border-red-500' : 'bg-white text-gray-600 border-gray-300 dark:bg-gray-800 dark:border-gray-600'}`}
+                className={`flex-1 h-10 text-sm font-medium rounded-xl border-2 transition-all shadow-sm ${transactionModalType === 'expense' ? 'bg-red-500 text-white border-red-500 shadow-md' : 'bg-white text-gray-600 border-gray-300 dark:bg-gray-800 dark:border-gray-600'}`}
               >
                 - Chi
               </button>
@@ -1587,7 +1587,7 @@ export function TodayTab() {
                 value={transactionAmount}
                 onChange={(e) => setTransactionAmount(formatNumberInput(e.target.value))}
                 placeholder="0"
-                className="h-10 text-sm"
+                className="h-10 text-sm rounded-xl shadow-sm border-gray-200 dark:border-gray-700"
               />
             </div>
             <div>
@@ -1596,12 +1596,12 @@ export function TodayTab() {
                 value={transactionDesc}
                 onChange={(e) => setTransactionDesc(e.target.value)}
                 placeholder="Nhập mô tả..."
-                className="h-10 text-sm"
+                className="h-10 text-sm rounded-xl shadow-sm border-gray-200 dark:border-gray-700"
               />
             </div>
             <Button 
               type="submit" 
-              className={`w-full h-10 text-sm font-medium ${transactionModalType === 'income' ? 'bg-green-500 hover:bg-green-600' : 'bg-red-500 hover:bg-red-600'}`}
+              className={`w-full h-10 text-sm font-medium rounded-xl shadow-md hover:shadow-lg transition-all ${transactionModalType === 'income' ? 'bg-green-500 hover:bg-green-600' : 'bg-red-500 hover:bg-red-600'}`}
             >
               Lưu
             </Button>
