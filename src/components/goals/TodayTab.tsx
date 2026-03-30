@@ -228,6 +228,7 @@ export function TodayTab() {
   const [newChecklistText, setNewChecklistText] = useState<Record<string, string>>({});
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [editItemText, setEditItemText] = useState('');
+  const [focusedItemId, setFocusedItemId] = useState<string | null>(null);
   const [itemData, setItemData] = useState<Record<string, ItemData>>({});
   const [currentTime, setCurrentTime] = useState(Date.now());
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
@@ -341,6 +342,19 @@ export function TodayTab() {
     }, 1000);
     return () => clearInterval(interval);
   }, [itemData]);
+
+  // Clear focus when clicking outside checklist items
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      const isChecklistItem = target.closest('[data-checklist-item]');
+      if (!isChecklistItem) {
+        setFocusedItemId(null);
+      }
+    };
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, []);
 
   // Timer functions
   const startTimer = (goalId: string, index: number) => {
@@ -747,7 +761,7 @@ export function TodayTab() {
                       setDraggingGoalId(null);
                     }}
                   >
-                    <CardContent className="p-2">
+                    <CardContent className="p-3">
                       <div className="flex items-center gap-1.5">
                         <button
                           type="button"
@@ -758,7 +772,7 @@ export function TodayTab() {
                             e.dataTransfer.setData('text/plain', goal.id);
                           }}
                           onDragEnd={() => setDraggingGoalId(null)}
-                          className="text-gray-300 hover:text-gray-500 dark:text-gray-600 dark:hover:text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                          className="text-gray-300 hover:text-gray-500 dark:text-gray-600 dark:hover:text-gray-400 opacity-30 group-hover:opacity-100 transition-opacity"
                         >
                           <GripVertical className="w-4 h-4" />
                         </button>
@@ -831,8 +845,22 @@ export function TodayTab() {
                             
                             const isItemExpanded = expandedItemIds[itemIdKey] || false;
                             
+                            const isFocused = focusedItemId === item.id;
+                            const hasAnyFocus = focusedItemId !== null;
+                            
                             return (
-                              <div key={item.id} className={`rounded-xl shadow-lg transition-all ${isItemExpanded ? 'bg-white dark:bg-gray-800' : 'bg-gray-50 dark:bg-gray-800/60'}`}>
+                              <div 
+                                key={item.id} 
+                                data-checklist-item
+                                onClick={() => setFocusedItemId(item.id)}
+                                className={`rounded-xl shadow-lg transition-all duration-300 cursor-pointer ${
+                                  isFocused 
+                                    ? 'bg-white dark:bg-gray-800 ring-2 ring-violet-500 scale-[1.02] z-10' 
+                                    : hasAnyFocus 
+                                      ? 'opacity-50 grayscale-[30%] bg-gray-100 dark:bg-gray-800/40' 
+                                      : 'bg-gray-50 dark:bg-gray-800/60'
+                                }`}
+                              >
                                 {/* Header Row - Always Visible */}
                                 <div 
                                   className="flex items-center p-3 gap-3"
@@ -847,18 +875,18 @@ export function TodayTab() {
                                     <p className={`text-sm font-medium truncate ${item.done ? 'text-gray-400 line-through' : 'text-gray-900 dark:text-gray-100'}`}>
                                       {item.text}
                                     </p>
+                                  </div>
+                                  {/* Stats - Right aligned */}
+                                  <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
                                     {(() => {
                                       const timeStatus = getTimeStatus(item.deadline, selectedDate);
                                       if (!timeStatus || item.done) return null;
                                       return (
-                                        <span className={`text-xs px-1.5 py-0.5 rounded ${timeStatus.color}`}>
+                                        <span className={`text-xs px-1.5 py-0.5 rounded whitespace-nowrap ${timeStatus.color}`}>
                                           {timeStatus.text}
                                         </span>
                                       );
                                     })()}
-                                  </div>
-                                  {/* Stats - Right aligned */}
-                                  <div className="flex items-center gap-2 shrink-0">
                                     {itemTotalTime > 0 && (
                                       <span className="text-xs text-violet-600 font-mono bg-violet-50 dark:bg-violet-900/20 px-2 py-0.5 rounded">
                                         ⏱ {formatTime(itemTotalTime)}
@@ -874,7 +902,7 @@ export function TodayTab() {
                                 </div>
                                 
                                 {isItemExpanded && (
-                                  <div className="px-3 pb-3 space-y-2">
+                                  <div className="p-4 space-y-3 bg-white dark:bg-gray-800">
                                     {/* Timer Row - Controls only on same line */}
                                     <div className="flex items-center gap-2">
                                       <button onClick={(e) => { e.stopPropagation(); startTimer(goal.id, checklistIndex); }} disabled={data.timerRunning} className="px-2 py-1 bg-violet-500 text-white text-xs rounded-lg hover:bg-violet-600 disabled:opacity-50 shadow-sm">▶</button>
@@ -896,11 +924,11 @@ export function TodayTab() {
                                         setTransactionModalType('income');
                                         setTransactionModalOpen(true);
                                       }}
-                                      className="w-full flex items-center justify-center gap-2 h-8 rounded-lg border border-dashed border-gray-300 dark:border-gray-600 text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-xs"
+                                      className="w-full flex items-center justify-center gap-2 h-9 rounded-lg bg-gradient-to-r from-green-50 to-red-50 dark:from-green-900/20 dark:to-red-900/20 border border-gray-200 dark:border-gray-700 text-gray-600 hover:from-green-100 hover:to-red-100 dark:hover:from-green-900/30 dark:hover:to-red-900/30 transition-all text-xs font-medium"
                                     >
-                                      <span className="text-green-500">+</span>
-                                      <span className="text-red-500">-</span>
-                                      <span>Thu/Chi</span>
+                                      <span className="text-green-600">+ Thu</span>
+                                      <span className="text-gray-400">|</span>
+                                      <span className="text-red-600">- Chi</span>
                                     </button>
                                     
                                     {/* Transaction Records */}
@@ -936,10 +964,10 @@ export function TodayTab() {
                                       </div>
                                     )}
 
-                                    {/* Edit/Delete Actions */}
-                                    <div className="flex items-center gap-2 pt-2 border-t border-gray-100 dark:border-gray-700">
+                                    {/* Settings Row - Edit/Delete + Deadline/Reminder */}
+                                    <div className="pt-3 border-t border-gray-100 dark:border-gray-700">
                                       {editingItemId === item.id ? (
-                                        <>
+                                        <div className="flex items-center gap-2">
                                           <Input
                                             value={editItemText}
                                             onChange={(e) => setEditItemText(e.target.value)}
@@ -977,16 +1005,17 @@ export function TodayTab() {
                                           >
                                             Hủy
                                           </Button>
-                                        </>
+                                        </div>
                                       ) : (
-                                        <>
+                                        <div className="flex flex-wrap items-center gap-2">
+                                          {/* Edit/Delete Actions */}
                                           <button
                                             onClick={(e) => {
                                               e.stopPropagation();
                                               setEditingItemId(item.id);
                                               setEditItemText(item.text);
                                             }}
-                                            className="flex items-center gap-1 px-2 py-1 text-xs text-violet-600 hover:bg-violet-50 dark:hover:bg-violet-900/20 rounded-lg transition-colors"
+                                            className="flex items-center gap-1 px-2 py-1.5 text-xs text-violet-600 hover:bg-violet-50 dark:hover:bg-violet-900/20 rounded-lg transition-colors"
                                           >
                                             <Edit2 className="w-3 h-3" />
                                             Sửa
@@ -998,45 +1027,45 @@ export function TodayTab() {
                                                 removeChecklistItem(goal.id, item.id);
                                               }
                                             }}
-                                            className="flex items-center gap-1 px-2 py-1 text-xs text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                                            className="flex items-center gap-1 px-2 py-1.5 text-xs text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
                                           >
                                             <Trash2 className="w-3 h-3" />
                                             Xóa
                                           </button>
-                                        </>
+                                          
+                                          <div className="w-px h-5 bg-gray-200 dark:bg-gray-700 mx-1" />
+                                          
+                                          {/* Deadline & Reminder */}
+                                          <div className="flex items-center gap-1.5 flex-1 min-w-[200px]">
+                                            <Calendar className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                                            <Input
+                                              type="date"
+                                              value={item.deadline || ''}
+                                              onChange={(e) => {
+                                                e.stopPropagation();
+                                                updateChecklistItemDeadline(goal.id, item.id, e.target.value || undefined);
+                                              }}
+                                              className="h-7 text-xs flex-1 min-w-0"
+                                              placeholder="Deadline"
+                                              onClick={(e) => e.stopPropagation()}
+                                            />
+                                          </div>
+                                          <div className="flex items-center gap-1.5 flex-1 min-w-[120px]">
+                                            <Bell className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                                            <Input
+                                              type="time"
+                                              value={item.reminderTime || ''}
+                                              onChange={(e) => {
+                                                e.stopPropagation();
+                                                updateChecklistItemReminder(goal.id, item.id, e.target.value || undefined);
+                                              }}
+                                              className="h-7 text-xs flex-1 min-w-0"
+                                              placeholder="Nhắc nhở"
+                                              onClick={(e) => e.stopPropagation()}
+                                            />
+                                          </div>
+                                        </div>
                                       )}
-                                    </div>
-
-                                    {/* Deadline & Reminder Settings */}
-                                    <div className="flex items-center gap-2 pt-2">
-                                      <div className="flex items-center gap-1 flex-1">
-                                        <Calendar className="w-3 h-3 text-gray-400" />
-                                        <Input
-                                          type="date"
-                                          value={item.deadline || ''}
-                                          onChange={(e) => {
-                                            e.stopPropagation();
-                                            updateChecklistItemDeadline(goal.id, item.id, e.target.value || undefined);
-                                          }}
-                                          className="h-7 text-xs flex-1"
-                                          placeholder="Deadline"
-                                          onClick={(e) => e.stopPropagation()}
-                                        />
-                                      </div>
-                                      <div className="flex items-center gap-1 flex-1">
-                                        <Bell className="w-3 h-3 text-gray-400" />
-                                        <Input
-                                          type="time"
-                                          value={item.reminderTime || ''}
-                                          onChange={(e) => {
-                                            e.stopPropagation();
-                                            updateChecklistItemReminder(goal.id, item.id, e.target.value || undefined);
-                                          }}
-                                          className="h-7 text-xs flex-1"
-                                          placeholder="Nhắc nhở"
-                                          onClick={(e) => e.stopPropagation()}
-                                        />
-                                      </div>
                                     </div>
                                   </div>
                                 )}
