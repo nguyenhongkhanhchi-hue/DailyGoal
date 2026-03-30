@@ -592,6 +592,44 @@ export function TodayTab() {
     return { totalUnits, completedUnits, completionRate };
   }, [goalsForSelectedDate, progressByGoalId]);
 
+  // Calculate daily time stats (24 hours total)
+  const dailyTimeStats = useMemo(() => {
+    let totalTrackedTime = 0;
+    
+    goalsForSelectedDate.forEach(goal => {
+      const goalProgress = progressByGoalId.get(goal.id);
+      const checklist = goalProgress?.checklist ?? [];
+      
+      checklist.forEach((_, idx) => {
+        const itemKey = `${goal.id}-${idx}`;
+        const data = itemData[itemKey];
+        if (data) {
+          // Calculate time from timer sessions
+          totalTrackedTime += data.timerSessions.reduce((acc, session) => 
+            acc + (session.endTime ? session.endTime - session.startTime : 0), 0);
+          
+          // Add running timer time
+          if (data.timerRunning) {
+            totalTrackedTime += currentTime - data.timerStartTime + data.timerElapsedWhenPaused;
+          } else {
+            totalTrackedTime += data.timerElapsedWhenPaused;
+          }
+        }
+      });
+    });
+    
+    // 24 hours in milliseconds
+    const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
+    const wastedTime = Math.max(0, TWENTY_FOUR_HOURS - totalTrackedTime);
+    
+    return {
+      trackedTime: totalTrackedTime,
+      wastedTime,
+      totalTime: TWENTY_FOUR_HOURS,
+      hasTracking: totalTrackedTime > 0
+    };
+  }, [goalsForSelectedDate, progressByGoalId, itemData, currentTime]);
+
   // Trigger confetti when 100% completed
   useEffect(() => {
     if (totals.completionRate === 100 && totals.totalUnits > 0 && !showConfetti) {
@@ -691,6 +729,47 @@ export function TodayTab() {
         </div>
         <span className="text-xs font-bold text-violet-600 dark:text-violet-400">{totals.completedUnits}/{totals.totalUnits}</span>
       </div>
+
+      {/* Daily Time Stats - 24 Hours Breakdown */}
+      {dailyTimeStats.hasTracking && (
+        <div className="px-0.5 py-2 bg-gradient-to-r from-violet-50/50 to-fuchsia-50/50 dark:from-violet-900/10 dark:to-fuchsia-900/10 rounded-lg">
+          <div className="flex items-center justify-between text-xs mb-1">
+            <span className="text-gray-500 dark:text-gray-400 font-medium">Thống kê thời gian 24 giờ</span>
+            <span className="text-gray-400 dark:text-gray-500 text-[10px]">{formatTime(dailyTimeStats.totalTime)}</span>
+          </div>
+          <div className="flex items-center gap-2 text-xs">
+            <div className="flex-1">
+              <div className="flex items-center justify-between mb-0.5">
+                <span className="text-violet-600 dark:text-violet-400">⏱ Đã theo dõi</span>
+                <span className="font-mono font-medium text-violet-700 dark:text-violet-300">{formatTime(dailyTimeStats.trackedTime)}</span>
+              </div>
+              <div className="h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                <motion.div 
+                  className="h-full bg-gradient-to-r from-violet-500 to-fuchsia-500 rounded-full" 
+                  initial={{ width: 0 }} 
+                  animate={{ width: `${Math.min(100, (dailyTimeStats.trackedTime / dailyTimeStats.totalTime) * 100)}%` }} 
+                  transition={{ duration: 0.5 }} 
+                />
+              </div>
+            </div>
+            <div className="w-px h-6 bg-gray-300 dark:bg-gray-600" />
+            <div className="flex-1">
+              <div className="flex items-center justify-between mb-0.5">
+                <span className="text-orange-500 dark:text-orange-400">⏳ Lãng phí</span>
+                <span className="font-mono font-medium text-orange-600 dark:text-orange-300">{formatTime(dailyTimeStats.wastedTime)}</span>
+              </div>
+              <div className="h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                <motion.div 
+                  className="h-full bg-gradient-to-r from-orange-400 to-red-400 rounded-full" 
+                  initial={{ width: 0 }} 
+                  animate={{ width: `${Math.min(100, (dailyTimeStats.wastedTime / dailyTimeStats.totalTime) * 100)}%` }} 
+                  transition={{ duration: 0.5 }} 
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Goals List */}
       <div className="space-y-1.5">
@@ -872,7 +951,7 @@ export function TodayTab() {
                                     className="h-5 w-5 border-gray-300 data-[state=checked]:bg-violet-500 data-[state=checked]:border-violet-500"
                                   />
                                   <div className="flex-1 min-w-0">
-                                    <p className={`text-sm font-medium truncate ${item.done ? 'text-gray-400 line-through' : 'text-gray-900 dark:text-gray-100'}`}>
+                                    <p className={`text-sm font-medium break-words ${item.done ? 'text-gray-400 line-through' : 'text-gray-900 dark:text-gray-100'}`}>
                                       {item.text}
                                     </p>
                                   </div>
