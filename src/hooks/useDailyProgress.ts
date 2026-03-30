@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import type { ChecklistItem, DailyProgress } from '@/types';
-import { format } from 'date-fns';
+import { format, subDays } from 'date-fns';
 
 const LEGACY_STORAGE_KEY = 'dailygoal_progress';
 const getStorageKey = (userId: string) => `${LEGACY_STORAGE_KEY}_${userId}`;
@@ -53,6 +53,82 @@ export function useDailyProgress(date: Date = new Date()) {
     localStorage.setItem(getStorageKey(user.uid), JSON.stringify(newProgress));
     setProgress(newProgress);
   }, [user]);
+
+  // Auto-copy overdue checklist items from yesterday to today
+  useEffect(() => {
+    if (!user || loading) return;
+
+    const yesterdayString = format(subDays(date, 1), 'yyyy-MM-dd');
+    
+    // Find yesterday's progress with overdue checklist items (has deadline but not done)
+    const yesterdayProgress = progress.filter(p => 
+      p.date === yesterdayString && 
+      p.userId === user.uid &&
+      p.checklist && 
+      p.checklist.some(item => item.deadline && !item.done)
+    );
+
+    if (yesterdayProgress.length === 0) return;
+
+    // Check if today's progress already exists for these goals
+    const todayProgress = progress.filter(p => p.date === dateString);
+    const todayGoalIds = new Set(todayProgress.map(p => p.goalId));
+
+    let hasChanges = false;
+    const newProgressItems: DailyProgress[] = [];
+
+    yesterdayProgress.forEach(yesterday => {
+      if (todayGoalIds.has(yesterday.goalId)) {
+        // Today's progress exists, check if we need to add overdue items
+        const todayGoalProgress = todayProgress.find(p => p.goalId === yesterday.goalId);
+        const todayChecklistIds = new Set((todayGoalProgress?.checklist || []).map(c => c.id));
+        
+        const overdueItems = yesterday.checklist!.filter(item => 
+          item.deadline && !item.done && !todayChecklistIds.has(item.id)
+        );
+
+        if (overdueItems.length > 0) {
+          // Add overdue items to today's checklist
+          hasChanges = true;
+          const updatedTodayProgress: DailyProgress = {
+            ...todayGoalProgress!,
+            checklist: [...(todayGoalProgress?.checklist || []), ...overdueItems],
+          };
+          newProgressItems.push(updatedTodayProgress);
+        }
+      } else {
+        // No progress for today, create new with only overdue items
+        const overdueItems = yesterday.checklist!.filter(item => item.deadline && !item.done);
+        if (overdueItems.length > 0) {
+          hasChanges = true;
+          newProgressItems.push({
+            id: 'progress_' + Date.now() + '_' + yesterday.goalId,
+            userId: user.uid,
+            goalId: yesterday.goalId,
+            date: dateString,
+            checklist: overdueItems,
+            completed: false,
+          });
+        }
+      }
+    });
+
+    if (hasChanges) {
+      // Update progress with new items
+      const updatedProgress = [...progress];
+      newProgressItems.forEach(newItem => {
+        const existingIndex = updatedProgress.findIndex(
+          p => p.goalId === newItem.goalId && p.date === newItem.date
+        );
+        if (existingIndex >= 0) {
+          updatedProgress[existingIndex] = newItem;
+        } else {
+          updatedProgress.push(newItem);
+        }
+      });
+      saveProgress(updatedProgress);
+    }
+  }, [dateString, user, loading, progress, saveProgress]);
 
   const upsertProgressForGoalAndDate = useCallback((goalId: string, updater: (current: DailyProgress | undefined) => DailyProgress) => {
     const existing = progress.find(p => p.goalId === goalId && p.date === dateString);
@@ -171,6 +247,62 @@ export function useDailyProgress(date: Date = new Date()) {
     });
   }, [dateString, upsertProgressForGoalAndDate, user]);
 
+  const updateChecklistItemText = useCallback(async (goalId: string, itemId: string, newText: string) => {
+    if (!user) throw new Error('User not authenticated');
+    const trimmed = newText.trim();
+    if (!trimmed) return;
+
+    upsertProgressForGoalAndDate(goalId, (current) => {
+      const currentChecklist = current?.checklist ?? [];
+      const nextChecklist = currentChecklist.map(i => (i.id === itemId ? { ...i, text: trimmed } : i));
+      const nextCompletion = computeCompletionFromChecklist(nextChecklist);
+      return {
+        id: current?.id ?? 'progress_' + Date.now(),
+        userId: user.uid,
+        goalId,
+        date: dateString,
+        checklist: nextChecklist,
+        ...nextCompletion,
+      };
+    });
+  }, [dateString, upsertProgressForGoalAndDate, user]);
+
+  const updateChecklistItemDeadline = useCallback(async (goalId: string, itemId: string, deadline: string | undefined) => {
+    if (!user) throw new Error('User not authenticated');
+
+    upsertProgressForGoalAndDate(goalId, (current) => {
+      const currentChecklist = current?.checklist ?? [];
+      const nextChecklist = currentChecklist.map(i => (i.id === itemId ? { ...i, deadline } : i));
+      return {
+        id: current?.id ?? 'progress_' + Date.now(),
+        userId: user.uid,
+        goalId,
+        date: dateString,
+        checklist: nextChecklist,
+        completed: current?.completed ?? false,
+        completedAt: current?.completedAt,
+      };
+    });
+  }, [dateString, upsertProgressForGoalAndDate, user]);
+
+  const updateChecklistItemReminder = useCallback(async (goalId: string, itemId: string, reminderTime: string | undefined) => {
+    if (!user) throw new Error('User not authenticated');
+
+    upsertProgressForGoalAndDate(goalId, (current) => {
+      const currentChecklist = current?.checklist ?? [];
+      const nextChecklist = currentChecklist.map(i => (i.id === itemId ? { ...i, reminderTime } : i));
+      return {
+        id: current?.id ?? 'progress_' + Date.now(),
+        userId: user.uid,
+        goalId,
+        date: dateString,
+        checklist: nextChecklist,
+        completed: current?.completed ?? false,
+        completedAt: current?.completedAt,
+      };
+    });
+  }, [dateString, upsertProgressForGoalAndDate, user]);
+
   return {
     progress,
     loading,
@@ -181,6 +313,9 @@ export function useDailyProgress(date: Date = new Date()) {
     addChecklistItem,
     toggleChecklistItem,
     removeChecklistItem,
+    updateChecklistItemText,
+    updateChecklistItemDeadline,
+    updateChecklistItemReminder,
   };
 }
 

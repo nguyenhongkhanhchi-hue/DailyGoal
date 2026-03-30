@@ -51,6 +51,8 @@ export interface ChecklistItem {
   text: string;
   done: boolean;
   createdAt: number;
+  deadline?: string; // ISO date string (YYYY-MM-DD)
+  reminderTime?: string; // HH:mm format
   timerSessions?: TimerSession[];
   financialTransactions?: FinancialTransaction[];
 }

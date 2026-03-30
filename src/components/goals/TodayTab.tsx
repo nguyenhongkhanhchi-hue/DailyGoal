@@ -21,7 +21,10 @@ import {
   GripVertical,
   ChevronDown,
   Plus,
-  Timer
+  Timer,
+  Edit2,
+  Calendar,
+  Bell,
 } from 'lucide-react';
 import { format, addDays, subDays, endOfDay } from 'date-fns';
 import { vi } from 'date-fns/locale';
@@ -86,36 +89,71 @@ const formatTime = (ms: number) => {
   return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 };
 
+const getTimeStatus = (deadline: string | undefined, currentDate: Date) => {
+  if (!deadline) return null;
+  const deadlineDate = new Date(deadline + 'T23:59:59');
+  const today = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate());
+  const deadlineDay = new Date(deadlineDate.getFullYear(), deadlineDate.getMonth(), deadlineDate.getDate());
+  
+  const diffTime = deadlineDay.getTime() - today.getTime();
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  
+  if (diffDays < 0) {
+    return { type: 'overdue', text: `Trễ ${Math.abs(diffDays)} ngày`, color: 'text-red-600 bg-red-50 dark:bg-red-900/20' };
+  } else if (diffDays === 0) {
+    return { type: 'today', text: 'Hôm nay', color: 'text-orange-600 bg-orange-50 dark:bg-orange-900/20' };
+  } else if (diffDays === 1) {
+    return { type: 'tomorrow', text: 'Ngày mai', color: 'text-yellow-600 bg-yellow-50 dark:bg-yellow-900/20' };
+  } else {
+    return { type: 'future', text: `Còn ${diffDays} ngày`, color: 'text-green-600 bg-green-50 dark:bg-green-900/20' };
+  }
+};
+
 const playTickSound = () => {
   try {
     const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
     if (!AudioContextClass) return;
     
     const audioCtx = new AudioContextClass();
+    
+    // Resume context if suspended (needed for some browsers)
+    if (audioCtx.state === 'suspended') {
+      audioCtx.resume();
+    }
+    
     const oscillator = audioCtx.createOscillator();
     const gainNode = audioCtx.createGain();
     
     oscillator.connect(gainNode);
     gainNode.connect(audioCtx.destination);
     
-    oscillator.frequency.value = 800;
-    oscillator.type = 'sine';
+    // Tăng frequency và thay đổi type để có tiếng "tick" rõ ràng hơn
+    oscillator.frequency.value = 1200;
+    oscillator.type = 'square';
     
-    gainNode.gain.setValueAtTime(0.08, audioCtx.currentTime);
-    gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.03);
+    // Tăng volume và tạo envelope ngắn gọn cho tiếng tick
+    gainNode.gain.setValueAtTime(0.15, audioCtx.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.05);
     
     oscillator.start(audioCtx.currentTime);
-    oscillator.stop(audioCtx.currentTime + 0.03);
+    oscillator.stop(audioCtx.currentTime + 0.05);
     
     oscillator.onended = () => {
       audioCtx.close();
     };
-  } catch (e) {}
+  } catch (e) {
+    // Silent fail nếu audio không được hỗ trợ
+  }
 };
 
 const speakAnnouncement = (elapsedSeconds: number) => {
   try {
     if (!('speechSynthesis' in window)) return;
+    
+    // Resume speech synthesis if suspended (important for inactive tabs)
+    if (window.speechSynthesis.paused) {
+      window.speechSynthesis.resume();
+    }
     
     const minutes = Math.floor(elapsedSeconds / 60);
     const seconds = elapsedSeconds % 60;
@@ -134,15 +172,37 @@ const speakAnnouncement = (elapsedSeconds: number) => {
     utterance.lang = 'vi-VN';
     utterance.rate = 0.9;
     utterance.pitch = 1.1;
+    utterance.volume = 1;
     
+    // Force voice selection
     const voices = window.speechSynthesis.getVoices();
     const vietnameseVoice = voices.find(v => v.lang.includes('vi'));
     if (vietnameseVoice) {
       utterance.voice = vietnameseVoice;
     }
     
+    // Use a short silent audio to keep audio context alive
+    try {
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      if (AudioContextClass) {
+        const ctx = new AudioContextClass();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        gain.gain.value = 0.001; // Nearly silent
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.001);
+        setTimeout(() => ctx.close(), 100);
+      }
+    } catch (e) {
+      // Silent fail
+    }
+    
     window.speechSynthesis.speak(utterance);
-  } catch (e) {}
+  } catch (e) {
+    // Silent fail
+  }
 };
 
 const formatCurrency = (amount: number) => {
@@ -158,13 +218,16 @@ export function TodayTab() {
   const [followToday, setFollowToday] = useState(true);
   const [calendarOpen, setCalendarOpen] = useState(false);
   const { goals, loading: goalsLoading } = useGoals();
-  const { progress, loading: progressLoading, toggleGoalCompletion, addChecklistItem, toggleChecklistItem } = useDailyProgress(selectedDate);
+  const { progress, loading: progressLoading, toggleGoalCompletion, addChecklistItem, toggleChecklistItem, removeChecklistItem, updateChecklistItemText, updateChecklistItemDeadline, updateChecklistItemReminder } = useDailyProgress(selectedDate);
   const [showConfetti, setShowConfetti] = useState(false);
   const [orderGoalIds, setOrderGoalIds] = useState<string[]>([]);
+  const [orderLoaded, setOrderLoaded] = useState(false);
   const [draggingGoalId, setDraggingGoalId] = useState<string | null>(null);
   const [openGoalIds, setOpenGoalIds] = useState<Record<string, boolean>>({});
   const [expandedItemIds, setExpandedItemIds] = useState<Record<string, boolean>>({});
   const [newChecklistText, setNewChecklistText] = useState<Record<string, string>>({});
+  const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [editItemText, setEditItemText] = useState('');
   const [itemData, setItemData] = useState<Record<string, ItemData>>({});
   const [currentTime, setCurrentTime] = useState(Date.now());
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
@@ -457,6 +520,7 @@ export function TodayTab() {
     const saved = localStorage.getItem(orderStorageKey);
     if (!saved) {
       setOrderGoalIds([]);
+      setOrderLoaded(true);
       return;
     }
     try {
@@ -465,6 +529,7 @@ export function TodayTab() {
     } catch {
       setOrderGoalIds([]);
     }
+    setOrderLoaded(true);
   }, [orderStorageKey]);
 
   useEffect(() => {
@@ -473,6 +538,7 @@ export function TodayTab() {
   }, [orderGoalIds, orderStorageKey]);
 
   useEffect(() => {
+    if (!orderLoaded) return;
     const activeIds = goalsForSelectedDate.map(g => g.id);
     setOrderGoalIds(prev => {
       const filtered = prev.filter(id => activeIds.includes(id));
@@ -481,7 +547,7 @@ export function TodayTab() {
       if (next.length === prev.length && next.every((id, i) => id === prev[i])) return prev;
       return next;
     });
-  }, [goalsForSelectedDate]);
+  }, [goalsForSelectedDate, orderLoaded]);
 
   const orderedGoals = useMemo(() => {
     if (orderGoalIds.length === 0) return goalsForSelectedDate;
@@ -705,7 +771,7 @@ export function TodayTab() {
                         </div>
 
                         <div className="flex-1 min-w-0">
-                          <p className={`font-medium text-sm break-words truncate ${
+                          <p className={`font-medium text-sm break-words ${
                           isCompleted ? 'text-gray-400 line-through' : 'text-gray-900 dark:text-gray-100'
                         }`}>
                             {goal.title}
@@ -781,6 +847,15 @@ export function TodayTab() {
                                     <p className={`text-sm font-medium truncate ${item.done ? 'text-gray-400 line-through' : 'text-gray-900 dark:text-gray-100'}`}>
                                       {item.text}
                                     </p>
+                                    {(() => {
+                                      const timeStatus = getTimeStatus(item.deadline, selectedDate);
+                                      if (!timeStatus || item.done) return null;
+                                      return (
+                                        <span className={`text-xs px-1.5 py-0.5 rounded ${timeStatus.color}`}>
+                                          {timeStatus.text}
+                                        </span>
+                                      );
+                                    })()}
                                   </div>
                                   {/* Stats - Right aligned */}
                                   <div className="flex items-center gap-2 shrink-0">
@@ -860,6 +935,109 @@ export function TodayTab() {
                                         )}
                                       </div>
                                     )}
+
+                                    {/* Edit/Delete Actions */}
+                                    <div className="flex items-center gap-2 pt-2 border-t border-gray-100 dark:border-gray-700">
+                                      {editingItemId === item.id ? (
+                                        <>
+                                          <Input
+                                            value={editItemText}
+                                            onChange={(e) => setEditItemText(e.target.value)}
+                                            className="flex-1 h-8 text-sm"
+                                            autoFocus
+                                            onKeyDown={(e) => {
+                                              if (e.key === 'Enter') {
+                                                updateChecklistItemText(goal.id, item.id, editItemText);
+                                                setEditingItemId(null);
+                                              }
+                                              if (e.key === 'Escape') {
+                                                setEditingItemId(null);
+                                              }
+                                            }}
+                                          />
+                                          <Button
+                                            size="sm"
+                                            className="h-8 px-2 bg-violet-500 text-white"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              updateChecklistItemText(goal.id, item.id, editItemText);
+                                              setEditingItemId(null);
+                                            }}
+                                          >
+                                            Lưu
+                                          </Button>
+                                          <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            className="h-8 px-2"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              setEditingItemId(null);
+                                            }}
+                                          >
+                                            Hủy
+                                          </Button>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              setEditingItemId(item.id);
+                                              setEditItemText(item.text);
+                                            }}
+                                            className="flex items-center gap-1 px-2 py-1 text-xs text-violet-600 hover:bg-violet-50 dark:hover:bg-violet-900/20 rounded-lg transition-colors"
+                                          >
+                                            <Edit2 className="w-3 h-3" />
+                                            Sửa
+                                          </button>
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              if (confirm('Xóa việc con này?')) {
+                                                removeChecklistItem(goal.id, item.id);
+                                              }
+                                            }}
+                                            className="flex items-center gap-1 px-2 py-1 text-xs text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                                          >
+                                            <Trash2 className="w-3 h-3" />
+                                            Xóa
+                                          </button>
+                                        </>
+                                      )}
+                                    </div>
+
+                                    {/* Deadline & Reminder Settings */}
+                                    <div className="flex items-center gap-2 pt-2">
+                                      <div className="flex items-center gap-1 flex-1">
+                                        <Calendar className="w-3 h-3 text-gray-400" />
+                                        <Input
+                                          type="date"
+                                          value={item.deadline || ''}
+                                          onChange={(e) => {
+                                            e.stopPropagation();
+                                            updateChecklistItemDeadline(goal.id, item.id, e.target.value || undefined);
+                                          }}
+                                          className="h-7 text-xs flex-1"
+                                          placeholder="Deadline"
+                                          onClick={(e) => e.stopPropagation()}
+                                        />
+                                      </div>
+                                      <div className="flex items-center gap-1 flex-1">
+                                        <Bell className="w-3 h-3 text-gray-400" />
+                                        <Input
+                                          type="time"
+                                          value={item.reminderTime || ''}
+                                          onChange={(e) => {
+                                            e.stopPropagation();
+                                            updateChecklistItemReminder(goal.id, item.id, e.target.value || undefined);
+                                          }}
+                                          className="h-7 text-xs flex-1"
+                                          placeholder="Nhắc nhở"
+                                          onClick={(e) => e.stopPropagation()}
+                                        />
+                                      </div>
+                                    </div>
                                   </div>
                                 )}
                               </div>
