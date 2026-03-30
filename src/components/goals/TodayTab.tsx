@@ -25,6 +25,15 @@ import {
   Edit2,
   Calendar,
   Bell,
+  Play,
+  Pause,
+  PlayCircle,
+  Square,
+  Wallet,
+  TrendingUp,
+  TrendingDown,
+  Check,
+  X,
 } from 'lucide-react';
 import { format, addDays, subDays, endOfDay } from 'date-fns';
 import { vi } from 'date-fns/locale';
@@ -981,76 +990,148 @@ export function TodayTab() {
                                 </div>
                                 
                                 {isItemExpanded && (
-                                  <div className="p-4 space-y-3 bg-white dark:bg-gray-800">
-                                    {/* Timer Row - Controls only on same line */}
-                                    <div className="flex items-center gap-2">
-                                      <button onClick={(e) => { e.stopPropagation(); startTimer(goal.id, checklistIndex); }} disabled={data.timerRunning} className="px-2 py-1 bg-violet-500 text-white text-xs rounded-lg hover:bg-violet-600 disabled:opacity-50 shadow-sm">▶</button>
-                                      <button onClick={(e) => { e.stopPropagation(); pauseTimer(goal.id, checklistIndex); }} disabled={!data.timerRunning} className="px-2 py-1 bg-yellow-500 text-white text-xs rounded-lg hover:bg-yellow-600 disabled:opacity-50 shadow-sm">⏸</button>
-                                      <button onClick={(e) => { e.stopPropagation(); resumeTimer(goal.id, checklistIndex); }} disabled={data.timerRunning || !data.pauseTime} className="px-2 py-1 bg-blue-500 text-white text-xs rounded-lg hover:bg-blue-600 disabled:opacity-50 shadow-sm">▶▶</button>
-                                      <button onClick={(e) => { e.stopPropagation(); stopTimer(goal.id, checklistIndex); }} disabled={!data.timerRunning && data.timerElapsedWhenPaused === 0} className="px-2 py-1 bg-red-500 text-white text-xs rounded-lg hover:bg-red-600 disabled:opacity-50 shadow-sm">⏹</button>
-                                      <span className="text-sm font-mono text-violet-600 font-bold ml-1">{formatTime(elapsed)}</span>
-                                    </div>
-                                     
-                                    {/* Financial Input - Opens Modal */}
-                                    <button 
-                                      type="button"
-                                      onClick={(e) => { 
-                                        e.stopPropagation();
-                                        setTransactionGoalId(goal.id);
-                                        setTransactionItemIndex(checklistIndex);
-                                        setTransactionAmount('');
-                                        setTransactionDesc('');
-                                        setTransactionModalType('income');
-                                        setTransactionModalOpen(true);
-                                      }}
-                                      className="w-full flex items-center justify-center gap-2 h-9 rounded-lg bg-gradient-to-r from-green-50 to-red-50 dark:from-green-900/20 dark:to-red-900/20 border border-gray-200 dark:border-gray-700 text-gray-600 hover:from-green-100 hover:to-red-100 dark:hover:from-green-900/30 dark:hover:to-red-900/30 transition-all text-xs font-medium"
-                                    >
-                                      <span className="text-green-600">+ Thu</span>
-                                      <span className="text-gray-400">|</span>
-                                      <span className="text-red-600">- Chi</span>
-                                    </button>
+                                  <div className="p-4 space-y-4 bg-white dark:bg-gray-800 border-t border-gray-100 dark:border-gray-700">
                                     
-                                    {/* Transaction Records */}
-                                    {data.financialTransactions.length > 0 && (
-                                      <div className="space-y-1">
-                                        {data.financialTransactions.slice(-3).map((tx) => (
-                                          <div key={tx.id} className="flex items-center justify-between text-xs bg-gray-50 dark:bg-gray-800/50 rounded px-2 py-1">
-                                            <span className="truncate flex-1 min-w-0 text-gray-600 dark:text-gray-400 mr-2">{tx.description}</span>
-                                            <span className={`font-medium shrink-0 ${tx.type === 'income' ? 'text-green-600' : 'text-red-600'}`}>
-                                              {tx.type === 'income' ? '+' : '-'}{formatCurrency(tx.amount)}
-                                            </span>
-                                          </div>
-                                        ))}
-                                      </div>
-                                    )}
-                                    
-                                    {/* Timer Sessions Summary */}
-                                    {(data.timerSessions.length > 0 || data.timerElapsedWhenPaused > 0) && (
-                                      <div className="text-xs text-gray-500 dark:text-gray-400 bg-violet-50 dark:bg-violet-900/20 rounded-lg p-2">
-                                        <div className="flex items-center justify-between">
-                                          <span>Tổng thời gian: <span className="font-medium text-violet-600">{formatTime(itemTotalTime)}</span></span>
-                                          <span className="text-gray-400">{data.timerSessions.length} phiên</span>
+                                    {/* ===== TIMER SECTION ===== */}
+                                    <div className="bg-gradient-to-br from-violet-50 to-fuchsia-50 dark:from-violet-900/20 dark:to-fuchsia-900/10 rounded-xl p-3">
+                                      <div className="flex items-center justify-between mb-3">
+                                        <div className="flex items-center gap-2">
+                                          <Timer className="w-4 h-4 text-violet-500" />
+                                          <span className="text-xs font-medium text-violet-600 dark:text-violet-400">Bộ đếm thời gian</span>
                                         </div>
-                                        {data.timerSessions.length > 0 && (
-                                          <div className="mt-1 text-gray-400 text-[10px]">
-                                            {data.timerSessions.slice(-3).map((s) => (
-                                              <div key={s.id} className="truncate">
-                                                {format(new Date(s.startTime), 'HH:mm')} - {s.endTime ? format(new Date(s.endTime), 'HH:mm') : 'đang chạy'}
-                                              </div>
-                                            ))}
+                                        <span className="text-lg font-mono font-bold text-violet-600">{formatTime(elapsed)}</span>
+                                      </div>
+                                      
+                                      {/* Timer Controls - Grid layout */}
+                                      <div className="grid grid-cols-4 gap-2">
+                                        <button 
+                                          onClick={(e) => { e.stopPropagation(); startTimer(goal.id, checklistIndex); }} 
+                                          disabled={data.timerRunning} 
+                                          className="flex flex-col items-center gap-1 p-2 rounded-lg bg-white dark:bg-gray-800 shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                                        >
+                                          <Play className="w-4 h-4 text-green-500" />
+                                          <span className="text-[10px] text-gray-500">Bắt đầu</span>
+                                        </button>
+                                        <button 
+                                          onClick={(e) => { e.stopPropagation(); pauseTimer(goal.id, checklistIndex); }} 
+                                          disabled={!data.timerRunning} 
+                                          className="flex flex-col items-center gap-1 p-2 rounded-lg bg-white dark:bg-gray-800 shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                                        >
+                                          <Pause className="w-4 h-4 text-yellow-500" />
+                                          <span className="text-[10px] text-gray-500">Tạm dừng</span>
+                                        </button>
+                                        <button 
+                                          onClick={(e) => { e.stopPropagation(); resumeTimer(goal.id, checklistIndex); }} 
+                                          disabled={data.timerRunning || !data.pauseTime} 
+                                          className="flex flex-col items-center gap-1 p-2 rounded-lg bg-white dark:bg-gray-800 shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                                        >
+                                          <PlayCircle className="w-4 h-4 text-blue-500" />
+                                          <span className="text-[10px] text-gray-500">Tiếp tục</span>
+                                        </button>
+                                        <button 
+                                          onClick={(e) => { e.stopPropagation(); stopTimer(goal.id, checklistIndex); }} 
+                                          disabled={!data.timerRunning && data.timerElapsedWhenPaused === 0} 
+                                          className="flex flex-col items-center gap-1 p-2 rounded-lg bg-white dark:bg-gray-800 shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                                        >
+                                          <Square className="w-4 h-4 text-red-500" />
+                                          <span className="text-[10px] text-gray-500">Dừng</span>
+                                        </button>
+                                      </div>
+                                      
+                                      {/* Timer Sessions Summary */}
+                                      {(data.timerSessions.length > 0 || data.timerElapsedWhenPaused > 0) && (
+                                        <div className="mt-3 pt-3 border-t border-violet-100 dark:border-violet-800/30">
+                                          <div className="flex items-center justify-between text-xs mb-2">
+                                            <span className="text-gray-500">Tổng đã đếm: <span className="font-medium text-violet-600">{formatTime(itemTotalTime)}</span></span>
+                                            <span className="text-gray-400">{data.timerSessions.length} phiên</span>
                                           </div>
+                                          {data.timerSessions.length > 0 && (
+                                            <div className="flex flex-wrap gap-1">
+                                              {data.timerSessions.slice(-5).map((s) => (
+                                                <span key={s.id} className="text-[10px] px-2 py-1 bg-white dark:bg-gray-800 rounded text-gray-500 border border-gray-100 dark:border-gray-700">
+                                                  {format(new Date(s.startTime), 'HH:mm')}-{s.endTime ? format(new Date(s.endTime), 'HH:mm') : '...'}
+                                                </span>
+                                              ))}
+                                            </div>
+                                          )}
+                                        </div>
+                                      )}
+                                    </div>
+
+                                    {/* ===== FINANCIAL SECTION ===== */}
+                                    <div className="bg-gradient-to-br from-green-50 to-red-50 dark:from-green-900/10 dark:to-red-900/10 rounded-xl p-3">
+                                      <div className="flex items-center gap-2 mb-3">
+                                        <Wallet className="w-4 h-4 text-gray-600" />
+                                        <span className="text-xs font-medium text-gray-600 dark:text-gray-400">Thu chi</span>
+                                        {itemTotalMoney !== 0 && (
+                                          <span className={`ml-auto text-sm font-medium ${itemTotalMoney >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                            {itemTotalMoney >= 0 ? '+' : ''}{formatCurrency(itemTotalMoney)}
+                                          </span>
                                         )}
                                       </div>
-                                    )}
+                                      
+                                      {/* Thu/Chi Buttons */}
+                                      <div className="grid grid-cols-2 gap-2 mb-3">
+                                        <button 
+                                          type="button"
+                                          onClick={(e) => { 
+                                            e.stopPropagation();
+                                            setTransactionGoalId(goal.id);
+                                            setTransactionItemIndex(checklistIndex);
+                                            setTransactionAmount('');
+                                            setTransactionDesc('');
+                                            setTransactionModalType('income');
+                                            setTransactionModalOpen(true);
+                                          }}
+                                          className="flex items-center justify-center gap-1.5 p-2.5 rounded-lg bg-green-500 text-white hover:bg-green-600 transition-colors shadow-sm"
+                                        >
+                                          <TrendingUp className="w-4 h-4" />
+                                          <span className="text-xs font-medium">+ Thu</span>
+                                        </button>
+                                        <button 
+                                          type="button"
+                                          onClick={(e) => { 
+                                            e.stopPropagation();
+                                            setTransactionGoalId(goal.id);
+                                            setTransactionItemIndex(checklistIndex);
+                                            setTransactionAmount('');
+                                            setTransactionDesc('');
+                                            setTransactionModalType('expense');
+                                            setTransactionModalOpen(true);
+                                          }}
+                                          className="flex items-center justify-center gap-1.5 p-2.5 rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors shadow-sm"
+                                        >
+                                          <TrendingDown className="w-4 h-4" />
+                                          <span className="text-xs font-medium">- Chi</span>
+                                        </button>
+                                      </div>
+                                      
+                                      {/* Transaction Records */}
+                                      {data.financialTransactions.length > 0 && (
+                                        <div className="space-y-1.5">
+                                          {data.financialTransactions.slice(-5).reverse().map((tx) => (
+                                            <div key={tx.id} className="flex items-center justify-between text-xs bg-white dark:bg-gray-800/80 rounded-lg px-3 py-2 shadow-sm">
+                                              <div className="flex items-center gap-2">
+                                                <span className={`w-2 h-2 rounded-full ${tx.type === 'income' ? 'bg-green-500' : 'bg-red-500'}`} />
+                                                <span className="text-gray-600 dark:text-gray-300 truncate max-w-[120px]">{tx.description}</span>
+                                              </div>
+                                              <span className={`font-medium ${tx.type === 'income' ? 'text-green-600' : 'text-red-600'}`}>
+                                                {tx.type === 'income' ? '+' : '-'}{formatCurrency(tx.amount)}
+                                              </span>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      )}
+                                    </div>
 
-                                    {/* Settings Row - Edit/Delete + Deadline/Reminder */}
-                                    <div className="pt-3 border-t border-gray-100 dark:border-gray-700">
+                                    {/* ===== MANAGEMENT SECTION ===== */}
+                                    <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-3 space-y-3">
                                       {editingItemId === item.id ? (
-                                        <div className="flex items-center gap-2">
+                                        <div className="space-y-2">
                                           <Input
                                             value={editItemText}
                                             onChange={(e) => setEditItemText(e.target.value)}
-                                            className="flex-1 h-8 text-sm"
+                                            className="h-9 text-sm"
                                             autoFocus
                                             onKeyDown={(e) => {
                                               if (e.key === 'Enter') {
@@ -1062,88 +1143,98 @@ export function TodayTab() {
                                               }
                                             }}
                                           />
-                                          <Button
-                                            size="sm"
-                                            className="h-8 px-2 bg-violet-500 text-white"
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              updateChecklistItemText(goal.id, item.id, editItemText);
-                                              setEditingItemId(null);
-                                            }}
-                                          >
-                                            Lưu
-                                          </Button>
-                                          <Button
-                                            size="sm"
-                                            variant="ghost"
-                                            className="h-8 px-2"
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              setEditingItemId(null);
-                                            }}
-                                          >
-                                            Hủy
-                                          </Button>
+                                          <div className="flex gap-2">
+                                            <Button
+                                              size="sm"
+                                              className="flex-1 h-8 bg-violet-500 text-white"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                updateChecklistItemText(goal.id, item.id, editItemText);
+                                                setEditingItemId(null);
+                                              }}
+                                            >
+                                              <Check className="w-4 h-4 mr-1" />
+                                              Lưu
+                                            </Button>
+                                            <Button
+                                              size="sm"
+                                              variant="outline"
+                                              className="flex-1 h-8"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                setEditingItemId(null);
+                                              }}
+                                            >
+                                              <X className="w-4 h-4 mr-1" />
+                                              Hủy
+                                            </Button>
+                                          </div>
                                         </div>
                                       ) : (
-                                        <div className="flex flex-wrap items-center gap-2">
-                                          {/* Edit/Delete Actions */}
-                                          <button
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              setEditingItemId(item.id);
-                                              setEditItemText(item.text);
-                                            }}
-                                            className="flex items-center gap-1 px-2 py-1.5 text-xs text-violet-600 hover:bg-violet-50 dark:hover:bg-violet-900/20 rounded-lg transition-colors"
-                                          >
-                                            <Edit2 className="w-3 h-3" />
-                                            Sửa
-                                          </button>
-                                          <button
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              if (confirm('Xóa việc con này?')) {
-                                                removeChecklistItem(goal.id, item.id);
-                                              }
-                                            }}
-                                            className="flex items-center gap-1 px-2 py-1.5 text-xs text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                                          >
-                                            <Trash2 className="w-3 h-3" />
-                                            Xóa
-                                          </button>
-                                          
-                                          <div className="w-px h-5 bg-gray-200 dark:bg-gray-700 mx-1" />
-                                          
-                                          {/* Deadline & Reminder */}
-                                          <div className="flex items-center gap-1.5 flex-1 min-w-[200px]">
-                                            <Calendar className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                                            <Input
-                                              type="date"
-                                              value={item.deadline || ''}
-                                              onChange={(e) => {
+                                        <>
+                                          {/* Action Buttons */}
+                                          <div className="flex gap-2">
+                                            <button
+                                              onClick={(e) => {
                                                 e.stopPropagation();
-                                                updateChecklistItemDeadline(goal.id, item.id, e.target.value || undefined);
+                                                setEditingItemId(item.id);
+                                                setEditItemText(item.text);
                                               }}
-                                              className="h-7 text-xs flex-1 min-w-0"
-                                              placeholder="Deadline"
-                                              onClick={(e) => e.stopPropagation()}
-                                            />
-                                          </div>
-                                          <div className="flex items-center gap-1.5 flex-1 min-w-[120px]">
-                                            <Bell className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                                            <Input
-                                              type="time"
-                                              value={item.reminderTime || ''}
-                                              onChange={(e) => {
+                                              className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium text-violet-600 bg-white dark:bg-gray-800 rounded-lg border border-violet-200 dark:border-violet-800 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-colors"
+                                            >
+                                              <Edit2 className="w-3.5 h-3.5" />
+                                              Sửa tên
+                                            </button>
+                                            <button
+                                              onClick={(e) => {
                                                 e.stopPropagation();
-                                                updateChecklistItemReminder(goal.id, item.id, e.target.value || undefined);
+                                                if (confirm('Xóa việc con này?')) {
+                                                  removeChecklistItem(goal.id, item.id);
+                                                }
                                               }}
-                                              className="h-7 text-xs flex-1 min-w-0"
-                                              placeholder="Nhắc nhở"
-                                              onClick={(e) => e.stopPropagation()}
-                                            />
+                                              className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium text-red-500 bg-white dark:bg-gray-800 rounded-lg border border-red-200 dark:border-red-800 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                                            >
+                                              <Trash2 className="w-3.5 h-3.5" />
+                                              Xóa
+                                            </button>
                                           </div>
-                                        </div>
+                                          
+                                          {/* Deadline & Reminder - Grid layout */}
+                                          <div className="grid grid-cols-2 gap-2">
+                                            <div className="space-y-1">
+                                              <label className="flex items-center gap-1 text-[10px] text-gray-500">
+                                                <Calendar className="w-3 h-3" />
+                                                Deadline
+                                              </label>
+                                              <Input
+                                                type="date"
+                                                value={item.deadline || ''}
+                                                onChange={(e) => {
+                                                  e.stopPropagation();
+                                                  updateChecklistItemDeadline(goal.id, item.id, e.target.value || undefined);
+                                                }}
+                                                className="h-8 text-xs"
+                                                onClick={(e) => e.stopPropagation()}
+                                              />
+                                            </div>
+                                            <div className="space-y-1">
+                                              <label className="flex items-center gap-1 text-[10px] text-gray-500">
+                                                <Bell className="w-3 h-3" />
+                                                Nhắc nhở
+                                              </label>
+                                              <Input
+                                                type="time"
+                                                value={item.reminderTime || ''}
+                                                onChange={(e) => {
+                                                  e.stopPropagation();
+                                                  updateChecklistItemReminder(goal.id, item.id, e.target.value || undefined);
+                                                }}
+                                                className="h-8 text-xs"
+                                                onClick={(e) => e.stopPropagation()}
+                                              />
+                                            </div>
+                                          </div>
+                                        </>
                                       )}
                                     </div>
                                   </div>
