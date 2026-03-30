@@ -249,6 +249,7 @@ export function TodayTab() {
   const [transactionAmount, setTransactionAmount] = useState('');
   const [transactionDesc, setTransactionDesc] = useState('');
   const [transactionModalType, setTransactionModalType] = useState<'income' | 'expense'>('income');
+  const [pushNotificationsEnabled, setPushNotificationsEnabled] = useState(false);
 
   const formatNumberInput = (value: string): string => {
     const num = value.replace(/[^\d]/g, '');
@@ -533,6 +534,71 @@ export function TodayTab() {
     return map;
   }, [progress, selectedDateKey]);
 
+  // Find running timer items
+  const runningTimerItems = useMemo(() => {
+    const items: { goalId: string; itemKey: string; itemText: string; elapsed: number; goalTitle: string }[] = [];
+    
+    goalsForSelectedDate.forEach(goal => {
+      const goalProgress = progressByGoalId.get(goal.id);
+      const checklist = goalProgress?.checklist ?? [];
+      
+      checklist.forEach((item, idx) => {
+        const itemKey = `${goal.id}-${idx}`;
+        const data = itemData[itemKey];
+        if (data?.timerRunning) {
+          const elapsed = currentTime - data.timerStartTime + data.timerElapsedWhenPaused;
+          items.push({
+            goalId: goal.id,
+            itemKey,
+            itemText: item.text,
+            elapsed,
+            goalTitle: goal.title
+          });
+        }
+      });
+    });
+    
+    return items;
+  }, [goalsForSelectedDate, progressByGoalId, itemData, currentTime]);
+
+  // Request push notification permission
+  const requestPushNotification = async () => {
+    if (!('Notification' in window)) {
+      alert('Trình duyệt không hỗ trợ thông báo đẩy');
+      return;
+    }
+    
+    const permission = await Notification.requestPermission();
+    if (permission === 'granted') {
+      setPushNotificationsEnabled(true);
+      new Notification('DailyGoal', {
+        body: 'Thông báo đẩy đã được bật!',
+        icon: '/icon-192x192.png'
+      });
+    } else {
+      alert('Bạn đã từ chối quyền thông báo. Hãy cấp quyền trong cài đặt trình duyệt.');
+    }
+  };
+
+  // Send push notification for running timers
+  useEffect(() => {
+    if (!pushNotificationsEnabled || runningTimerItems.length === 0) return;
+    
+    // Send notification every 15 minutes
+    const interval = setInterval(() => {
+      runningTimerItems.forEach(item => {
+        new Notification('⏱ Đang đếm giờ', {
+          body: `${item.goalTitle}: ${item.itemText} - ${formatTime(item.elapsed)}`,
+          icon: '/icon-192x192.png',
+          badge: '/icon-96x96.png',
+          tag: item.itemKey
+        });
+      });
+    }, 15 * 60 * 1000); // 15 minutes
+    
+    return () => clearInterval(interval);
+  }, [pushNotificationsEnabled, runningTimerItems]);
+
   const orderStorageKey = useMemo(() => {
     if (!user) return null;
     return `dailygoal_today_order_${user.uid}_${selectedDateKey}`;
@@ -708,6 +774,58 @@ export function TodayTab() {
 
   return (
     <div className="space-y-1 pb-20">
+      {/* Running Timer Notification Bar */}
+      {runningTimerItems.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="sticky top-0 z-50 space-y-1"
+        >
+          {runningTimerItems.map((item) => (
+            <div
+              key={item.itemKey}
+              className="bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white rounded-lg px-3 py-2 shadow-lg flex items-center justify-between"
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                <motion.div
+                  animate={{ scale: [1, 1.2, 1] }}
+                  transition={{ duration: 1, repeat: Infinity }}
+                >
+                  <Timer className="w-4 h-4" />
+                </motion.div>
+                <div className="min-w-0">
+                  <p className="text-xs font-medium truncate">{item.goalTitle}</p>
+                  <p className="text-[10px] opacity-90 truncate">{item.itemText}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-mono font-bold">{formatTime(item.elapsed)}</span>
+                <button
+                  onClick={() => {
+                    const [goalId, idx] = item.itemKey.split('-');
+                    pauseTimer(goalId, parseInt(idx));
+                  }}
+                  className="p-1 bg-white/20 rounded hover:bg-white/30 transition-colors"
+                >
+                  <Pause className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          ))}
+        </motion.div>
+      )}
+
+      {/* Push Notification Toggle */}
+      {'Notification' in window && Notification.permission !== 'granted' && (
+        <button
+          onClick={requestPushNotification}
+          className="w-full flex items-center justify-center gap-2 py-2 px-3 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 text-blue-600 dark:text-blue-400 rounded-lg text-xs font-medium hover:from-blue-100 hover:to-indigo-100 dark:hover:from-blue-900/30 dark:hover:to-indigo-900/30 transition-colors border border-blue-200 dark:border-blue-800"
+        >
+          <Bell className="w-3.5 h-3.5" />
+          Bật thông báo đẩy để nhận nhắc nhở
+        </button>
+      )}
+
       {/* Date Navigator */}
       <div className="flex items-center gap-1">
         <Button variant="ghost" size="icon" onClick={handlePrevDay} className="h-6 w-6 text-violet-600 dark:text-violet-400 hover:bg-violet-100 dark:hover:bg-violet-900/30">
