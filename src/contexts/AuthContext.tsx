@@ -75,10 +75,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loginWithGoogle = async (): Promise<boolean> => {
     try {
-      await signInWithPopup(auth, googleProvider);
+      console.log('Starting Google sign-in...');
+      const result = await signInWithPopup(auth, googleProvider);
+      console.log('Google sign-in success:', result.user.email);
       return true;
-    } catch (error) {
-      console.error('Google login error:', error);
+    } catch (error: any) {
+      console.error('Google login error details:', {
+        code: error.code,
+        message: error.message,
+        fullError: error,
+      });
+      
+      // Log cụ thể từng loại lỗi
+      if (error.code === 'auth/popup-closed-by-user') {
+        console.log('User closed popup');
+      } else if (error.code === 'auth/popup-blocked') {
+        console.log('Popup was blocked by browser');
+      } else if (error.code === 'auth/unauthorized-domain') {
+        console.log('Domain not authorized in Firebase');
+      } else if (error.code === 'auth/api-key-not-valid') {
+        console.log('Firebase API key invalid');
+      }
+      
       return false;
     }
   };

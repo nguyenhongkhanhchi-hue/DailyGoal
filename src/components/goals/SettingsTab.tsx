@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useGoals } from '@/hooks/useGoals';
 import { useAuth } from '@/contexts/AuthContext';
-import { Plus, Trash2, Edit2, Target, LogOut, DollarSign, Clock } from 'lucide-react';
+import { Plus, Trash2, Edit2, Target, LogOut, DollarSign, Clock, Download, Upload } from 'lucide-react';
 import type { Goal } from '@/types';
 import { format } from 'date-fns';
 
@@ -233,6 +233,53 @@ export function SettingsTab() {
     }
   };
 
+  // Export all data to JSON file
+  const exportData = () => {
+    const data = {
+      goals: JSON.parse(localStorage.getItem('dailygoal_goals') || '[]'),
+      progress: JSON.parse(localStorage.getItem('dailygoal_progress') || '[]'),
+      exportedAt: new Date().toISOString(),
+      version: '1.0'
+    };
+    
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `dailygoal-backup-${format(new Date(), 'yyyy-MM-dd')}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  // Import data from JSON file
+  const importData = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = JSON.parse(e.target?.result as string);
+        
+        if (confirm('Nhập dữ liệu sẽ ghi đè lên dữ liệu hiện tại. Tiếp tục?')) {
+          if (data.goals) {
+            localStorage.setItem('dailygoal_goals', JSON.stringify(data.goals));
+          }
+          if (data.progress) {
+            localStorage.setItem('dailygoal_progress', JSON.stringify(data.progress));
+          }
+          alert('Nhập dữ liệu thành công! Vui lòng tải lại trang.');
+          window.location.reload();
+        }
+      } catch (error) {
+        alert('File không hợp lệ!');
+      }
+    };
+    reader.readAsText(file);
+  };
+
   if (loading) {
     return (
       <div className="space-y-4 pb-20">
@@ -401,6 +448,56 @@ export function SettingsTab() {
                 </div>
               </div>
             )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Export/Import Data Section */}
+      <Card className="border-0 shadow-lg rounded-xl">
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-semibold flex items-center gap-2">
+              <Download className="w-5 h-5 text-violet-500" />
+              Sao lưu dữ liệu
+            </h3>
+          </div>
+          
+          <div className="space-y-3">
+            <p className="text-xs text-gray-500">
+              Xuất dữ liệu ra file để sao lưu hoặc chuyển sang thiết bị khác
+            </p>
+            
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={exportData}
+                className="flex-1"
+              >
+                <Download className="w-4 h-4 mr-1" />
+                Xuất dữ liệu
+              </Button>
+              
+              <label className="flex-1">
+                <input
+                  type="file"
+                  accept=".json"
+                  onChange={importData}
+                  className="hidden"
+                />
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="w-full"
+                  asChild
+                >
+                  <span>
+                    <Upload className="w-4 h-4 mr-1" />
+                    Nhập dữ liệu
+                  </span>
+                </Button>
+              </label>
+            </div>
           </div>
         </CardContent>
       </Card>
