@@ -26,7 +26,10 @@ export function PlansTab() {
   const { plans, addPlan, updatePlan, deletePlan, toggleTrainingMode, streaks } = usePlans();
   const { goals } = useGoals();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isToggling, setIsToggling] = useState<string | null>(null);
   const [editingPlan, setEditingPlan] = useState<Plan | null>(null);
+  const [formErrors, setFormErrors] = useState<{title?: string; goals?: string; trainingMode?: string}>({});
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -35,25 +38,59 @@ export function PlansTab() {
     isTrainingMode: false,
   });
 
+  const validateForm = (): boolean => {
+    const errors: {title?: string; goals?: string; trainingMode?: string} = {};
+    
+    if (!formData.title.trim()) {
+      errors.title = 'Vui lòng nhập tên kế hoạch';
+    }
+    
+    if (formData.goalIds.length === 0) {
+      errors.goals = 'Vui lòng chọn ít nhất 1 mục tiêu';
+    }
+    
+    if (formData.isTrainingMode && formData.goalIds.length < 2) {
+      errors.trainingMode = 'Chế độ rèn luyện cần ít nhất 2 mục tiêu để mở khóa lẫn nhau';
+    }
+    
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.title.trim()) return;
+    if (!validateForm()) return;
+    
+    setIsSubmitting(true);
+    try {
+      if (editingPlan) {
+        await updatePlan(editingPlan.id, formData);
+      } else {
+        await addPlan(formData);
+      }
 
-    if (editingPlan) {
-      await updatePlan(editingPlan.id, formData);
-    } else {
-      await addPlan(formData);
+      setIsDialogOpen(false);
+      setEditingPlan(null);
+      setFormData({
+        title: '',
+        description: '',
+        icon: 'target',
+        goalIds: [],
+        isTrainingMode: false,
+      });
+      setFormErrors({});
+    } finally {
+      setIsSubmitting(false);
     }
+  };
 
-    setIsDialogOpen(false);
-    setEditingPlan(null);
-    setFormData({
-      title: '',
-      description: '',
-      icon: 'target',
-      goalIds: [],
-      isTrainingMode: false,
-    });
+  const handleToggleTraining = async (planId: string, checked: boolean) => {
+    setIsToggling(planId);
+    try {
+      await toggleTrainingMode(planId, checked);
+    } finally {
+      setIsToggling(null);
+    }
   };
 
   const handleEdit = (plan: Plan) => {
@@ -114,7 +151,11 @@ export function PlansTab() {
                   value={formData.title}
                   onChange={e => setFormData(prev => ({ ...prev, title: e.target.value }))}
                   placeholder="VD: Giảm cân thành công"
+                  className={formErrors.title ? 'border-red-500' : ''}
                 />
+                {formErrors.title && (
+                  <p className="text-xs text-red-500 mt-1">{formErrors.title}</p>
+                )}
               </div>
               <div>
                 <Label>Mô tả</Label>
@@ -131,6 +172,7 @@ export function PlansTab() {
                     <button
                       key={icon.id}
                       type="button"
+                      title={icon.id}
                       onClick={() => setFormData(prev => ({ ...prev, icon: icon.id }))}
                       className={`w-10 h-10 rounded-lg text-xl transition-all ${
                         formData.icon === icon.id
@@ -145,7 +187,7 @@ export function PlansTab() {
               </div>
               <div>
                 <Label>Chọn mục tiêu ({formData.goalIds.length} đã chọn)</Label>
-                <div className="max-h-40 overflow-y-auto space-y-2 mt-2 border rounded-lg p-2">
+                <div className={`max-h-40 overflow-y-auto space-y-2 mt-2 border rounded-lg p-2 ${formErrors.goals ? 'border-red-500' : ''}`}>
                   {goals.filter(g => !g.deletedAt).map(goal => (
                     <label
                       key={goal.id}
@@ -161,6 +203,9 @@ export function PlansTab() {
                     </label>
                   ))}
                 </div>
+                {formErrors.goals && (
+                  <p className="text-xs text-red-500 mt-1">{formErrors.goals}</p>
+                )}
               </div>
               <div className="flex items-center gap-2">
                 <Switch
@@ -171,11 +216,18 @@ export function PlansTab() {
                   Bật chế độ rèn luyện (Training Mode)
                 </Label>
               </div>
+              {formErrors.trainingMode && (
+                <p className="text-xs text-red-500">{formErrors.trainingMode}</p>
+              )}
               <p className="text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 p-2 rounded">
                 💡 Chế độ rèn luyện: Phải duy trì streak 7 ngày liên tiếp với mục tiêu trước để mở khóa mục tiêu tiếp theo
               </p>
-              <Button type="submit" className="w-full bg-violet-500 hover:bg-violet-600">
-                {editingPlan ? 'Lưu thay đổi' : 'Tạo kế hoạch'}
+              <Button 
+                type="submit" 
+                className="w-full bg-violet-500 hover:bg-violet-600"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? 'Đang lưu...' : (editingPlan ? 'Lưu thay đổi' : 'Tạo kế hoạch')}
               </Button>
             </form>
           </DialogContent>
@@ -297,7 +349,8 @@ export function PlansTab() {
                           </span>
                           <Switch
                             checked={plan.isTrainingMode}
-                            onCheckedChange={checked => toggleTrainingMode(plan.id, checked)}
+                            onCheckedChange={checked => handleToggleTraining(plan.id, checked)}
+                            disabled={isToggling === plan.id}
                           />
                         </div>
                       </div>

@@ -17,12 +17,34 @@ import { format, subDays } from 'date-fns';
 const LEGACY_STORAGE_KEY = 'dailygoal_progress';
 
 export function useDailyProgress(date: Date = new Date()) {
-  const { user } = useAuth();
+  const { user, guestMode } = useAuth();
   const [progress, setProgress] = useState<DailyProgress[]>([]);
   const [loading, setLoading] = useState(true);
   const [migrated, setMigrated] = useState(false);
 
   const dateString = format(date, 'yyyy-MM-dd');
+  const userId = user?.uid || 'guest_user';
+  
+  // Get localStorage key for guest mode
+  const getStorageKey = useCallback(() => {
+    return `${LEGACY_STORAGE_KEY}_${userId}`;
+  }, [userId]);
+
+  // Load from localStorage (guest mode)
+  useEffect(() => {
+    if (user && !guestMode) return; // Only load from localStorage in guest mode
+    
+    const savedProgress = localStorage.getItem(getStorageKey());
+    if (savedProgress) {
+      try {
+        const parsed = JSON.parse(savedProgress);
+        setProgress(parsed);
+      } catch (e) {
+        console.error('Failed to parse progress from localStorage', e);
+      }
+    }
+    setLoading(false);
+  }, [user, guestMode, getStorageKey]);
 
   const createChecklistItemId = () => {
     if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return crypto.randomUUID();
@@ -186,19 +208,42 @@ export function useDailyProgress(date: Date = new Date()) {
   }, [dateString, user, loading, progress, saveProgress]);
 
   const upsertProgressForGoalAndDate = useCallback(async (goalId: string, updater: (current: DailyProgress | undefined) => DailyProgress) => {
-    if (!user) return;
-    
     const existing = progress.find(p => p.goalId === goalId && p.date === dateString);
     const next = updater(existing);
     
-    // Ghi vào Firestore
+    // Update local state
+    setProgress(prev => {
+      const index = prev.findIndex(p => p.goalId === goalId && p.date === dateString);
+      if (index >= 0) {
+        const updated = [...prev];
+        updated[index] = next;
+        return updated;
+      }
+      return [...prev, next];
+    });
+    
+    // Save to localStorage if guest mode
+    if (!user || guestMode) {
+      const savedProgress = localStorage.getItem(getStorageKey());
+      const parsed = savedProgress ? JSON.parse(savedProgress) : [];
+      const index = parsed.findIndex((p: DailyProgress) => p.goalId === goalId && p.date === dateString);
+      if (index >= 0) {
+        parsed[index] = next;
+      } else {
+        parsed.push(next);
+      }
+      localStorage.setItem(getStorageKey(), JSON.stringify(parsed));
+      return;
+    }
+    
+    // Save to Firestore if authenticated
     const progressRef = doc(db, 'progress', next.id);
     await setDoc(progressRef, {
       ...next,
       userId: user.uid,
       updatedAt: serverTimestamp(),
     });
-  }, [dateString, progress, user]);
+  }, [dateString, progress, user, guestMode, getStorageKey]);
 
   const computeCompletionFromChecklist = (checklist: ChecklistItem[] | undefined) => {
     if (!checklist || checklist.length === 0) return { completed: false, completedAt: undefined as Date | undefined };
@@ -207,8 +252,6 @@ export function useDailyProgress(date: Date = new Date()) {
   };
 
   const toggleGoalCompletion = useCallback(async (goalId: string) => {
-    if (!user) throw new Error('User not authenticated');
-
     upsertProgressForGoalAndDate(goalId, (current) => {
       const currentChecklist = current?.checklist;
       const hasChecklist = Array.isArray(currentChecklist) && currentChecklist.length > 0;
@@ -219,7 +262,7 @@ export function useDailyProgress(date: Date = new Date()) {
         const nextCompletion = computeCompletionFromChecklist(nextChecklist);
         return {
           id: current?.id ?? 'progress_' + Date.now(),
-          userId: user.uid,
+          userId: userId,
           goalId,
           date: dateString,
           checklist: nextChecklist,
@@ -230,7 +273,7 @@ export function useDailyProgress(date: Date = new Date()) {
       const nextCompleted = !(current?.completed ?? false);
       return {
         id: current?.id ?? 'progress_' + Date.now(),
-        userId: user.uid,
+        userId: userId,
         goalId,
         date: dateString,
         checklist: current?.checklist,
@@ -238,7 +281,7 @@ export function useDailyProgress(date: Date = new Date()) {
         completedAt: nextCompleted ? new Date() : undefined,
       };
     });
-  }, [upsertProgressForGoalAndDate, user]);
+  }, [upsertProgressForGoalAndDate, userId, dateString]);
 
   const getProgressForGoal = useCallback((goalId: string): boolean => {
     return progress.find(p => p.goalId === goalId && p.date === dateString)?.completed || false;
@@ -256,7 +299,6 @@ export function useDailyProgress(date: Date = new Date()) {
   }, [progress, dateString]);
 
   const addChecklistItem = useCallback(async (goalId: string, text: string) => {
-    if (!user) throw new Error('User not authenticated');
     const trimmed = text.trim();
     if (!trimmed) return;
 
@@ -265,53 +307,48 @@ export function useDailyProgress(date: Date = new Date()) {
       const nextCompletion = computeCompletionFromChecklist(nextChecklist);
       return {
         id: current?.id ?? 'progress_' + Date.now(),
-        userId: user.uid,
+        userId: userId,
         goalId,
         date: dateString,
         checklist: nextChecklist,
         ...nextCompletion,
       };
     });
-  }, [createChecklistItemId, dateString, upsertProgressForGoalAndDate, user]);
+  }, [createChecklistItemId, dateString, upsertProgressForGoalAndDate, userId]);
 
   const toggleChecklistItem = useCallback(async (goalId: string, itemId: string) => {
-    if (!user) throw new Error('User not authenticated');
-
     upsertProgressForGoalAndDate(goalId, (current) => {
       const currentChecklist = current?.checklist ?? [];
       const nextChecklist = currentChecklist.map(i => (i.id === itemId ? { ...i, done: !i.done } : i));
       const nextCompletion = computeCompletionFromChecklist(nextChecklist);
       return {
         id: current?.id ?? 'progress_' + Date.now(),
-        userId: user.uid,
+        userId: userId,
         goalId,
         date: dateString,
         checklist: nextChecklist,
         ...nextCompletion,
       };
     });
-  }, [dateString, upsertProgressForGoalAndDate, user]);
+  }, [dateString, upsertProgressForGoalAndDate, userId]);
 
   const removeChecklistItem = useCallback(async (goalId: string, itemId: string) => {
-    if (!user) throw new Error('User not authenticated');
-
     upsertProgressForGoalAndDate(goalId, (current) => {
       const currentChecklist = current?.checklist ?? [];
       const nextChecklist = currentChecklist.filter(i => i.id !== itemId);
       const nextCompletion = computeCompletionFromChecklist(nextChecklist);
       return {
         id: current?.id ?? 'progress_' + Date.now(),
-        userId: user.uid,
+        userId: userId,
         goalId,
         date: dateString,
         checklist: nextChecklist.length > 0 ? nextChecklist : [],
         ...nextCompletion,
       };
     });
-  }, [dateString, upsertProgressForGoalAndDate, user]);
+  }, [dateString, upsertProgressForGoalAndDate, userId]);
 
   const updateChecklistItemText = useCallback(async (goalId: string, itemId: string, newText: string) => {
-    if (!user) throw new Error('User not authenticated');
     const trimmed = newText.trim();
     if (!trimmed) return;
 
@@ -321,24 +358,22 @@ export function useDailyProgress(date: Date = new Date()) {
       const nextCompletion = computeCompletionFromChecklist(nextChecklist);
       return {
         id: current?.id ?? 'progress_' + Date.now(),
-        userId: user.uid,
+        userId: userId,
         goalId,
         date: dateString,
         checklist: nextChecklist,
         ...nextCompletion,
       };
     });
-  }, [dateString, upsertProgressForGoalAndDate, user]);
+  }, [dateString, upsertProgressForGoalAndDate, userId]);
 
   const updateChecklistItemDeadline = useCallback(async (goalId: string, itemId: string, deadline: string | undefined) => {
-    if (!user) throw new Error('User not authenticated');
-
     upsertProgressForGoalAndDate(goalId, (current) => {
       const currentChecklist = current?.checklist ?? [];
       const nextChecklist = currentChecklist.map(i => (i.id === itemId ? { ...i, deadline } : i));
       return {
         id: current?.id ?? 'progress_' + Date.now(),
-        userId: user.uid,
+        userId: userId,
         goalId,
         date: dateString,
         checklist: nextChecklist,
@@ -346,17 +381,15 @@ export function useDailyProgress(date: Date = new Date()) {
         completedAt: current?.completedAt,
       };
     });
-  }, [dateString, upsertProgressForGoalAndDate, user]);
+  }, [dateString, upsertProgressForGoalAndDate, userId]);
 
   const updateChecklistItemReminder = useCallback(async (goalId: string, itemId: string, reminderTime: string | undefined) => {
-    if (!user) throw new Error('User not authenticated');
-
     upsertProgressForGoalAndDate(goalId, (current) => {
       const currentChecklist = current?.checklist ?? [];
       const nextChecklist = currentChecklist.map(i => (i.id === itemId ? { ...i, reminderTime } : i));
       return {
         id: current?.id ?? 'progress_' + Date.now(),
-        userId: user.uid,
+        userId: userId,
         goalId,
         date: dateString,
         checklist: nextChecklist,
@@ -364,7 +397,7 @@ export function useDailyProgress(date: Date = new Date()) {
         completedAt: current?.completedAt,
       };
     });
-  }, [dateString, upsertProgressForGoalAndDate, user]);
+  }, [dateString, upsertProgressForGoalAndDate, userId]);
 
   return {
     progress,

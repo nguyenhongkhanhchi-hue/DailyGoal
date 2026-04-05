@@ -107,56 +107,68 @@ export function usePlans() {
   // Calculate streak for a goal based on progress
   const calculateStreak = useCallback((goalId: string, progress: DailyProgress[]) => {
     const today = new Date();
-    const sortedProgress = progress
+    today.setHours(0, 0, 0, 0);
+    
+    const goalProgress = progress
       .filter(p => p.goalId === goalId && p.completed)
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
-    if (sortedProgress.length === 0) {
+    if (goalProgress.length === 0) {
       return { currentStreak: 0, longestStreak: 0, lastCompletedAt: undefined };
     }
 
-    let currentStreak = 0;
-    let longestStreak = 0;
-    let tempStreak = 0;
-    let lastDate: Date | null = null;
+    // Check if most recent completion is today or yesterday
+    const mostRecent = new Date(goalProgress[0].date);
+    mostRecent.setHours(0, 0, 0, 0);
+    const daysSinceLastCompletion = Math.floor((today.getTime() - mostRecent.getTime()) / (1000 * 60 * 60 * 24));
+    
+    // If last completion was more than 1 day ago (and not today), streak broken
+    if (daysSinceLastCompletion > 1) {
+      return { 
+        currentStreak: 0, 
+        longestStreak: goalProgress.length,
+        lastCompletedAt: goalProgress[0].completedAt
+      };
+    }
 
-    // Calculate current streak (consecutive days up to today or yesterday)
-    for (let i = 0; i < sortedProgress.length; i++) {
-      const progressDate = new Date(sortedProgress[i].date);
-      const daysDiff = lastDate 
-        ? Math.floor((lastDate.getTime() - progressDate.getTime()) / (1000 * 60 * 60 * 24))
-        : Math.floor((today.getTime() - progressDate.getTime()) / (1000 * 60 * 60 * 24));
-
-      if (daysDiff <= 1) {
+    // Calculate current streak
+    let currentStreak = 1;
+    for (let i = 1; i < goalProgress.length; i++) {
+      const current = new Date(goalProgress[i - 1].date);
+      const prev = new Date(goalProgress[i].date);
+      current.setHours(0, 0, 0, 0);
+      prev.setHours(0, 0, 0, 0);
+      
+      const diffDays = Math.floor((current.getTime() - prev.getTime()) / (1000 * 60 * 60 * 24));
+      if (diffDays === 1) {
         currentStreak++;
       } else {
         break;
       }
-      lastDate = progressDate;
     }
 
     // Calculate longest streak
-    lastDate = null;
-    for (const p of sortedProgress) {
-      const progressDate = new Date(p.date);
-      const daysDiff = lastDate 
-        ? Math.floor((lastDate.getTime() - progressDate.getTime()) / (1000 * 60 * 60 * 24))
-        : 0;
-
-      if (daysDiff === 1 || daysDiff === 0) {
+    let longestStreak = currentStreak;
+    let tempStreak = 1;
+    for (let i = 1; i < goalProgress.length; i++) {
+      const current = new Date(goalProgress[i - 1].date);
+      const prev = new Date(goalProgress[i].date);
+      current.setHours(0, 0, 0, 0);
+      prev.setHours(0, 0, 0, 0);
+      
+      const diffDays = Math.floor((current.getTime() - prev.getTime()) / (1000 * 60 * 60 * 24));
+      if (diffDays === 1) {
         tempStreak++;
-      } else {
         longestStreak = Math.max(longestStreak, tempStreak);
+      } else if (diffDays > 1) {
         tempStreak = 1;
       }
-      lastDate = progressDate;
     }
-    longestStreak = Math.max(longestStreak, tempStreak, currentStreak);
 
     return {
       currentStreak,
-      longestStreak,
-      lastCompletedAt: sortedProgress[0]?.completedAt,
+      longestStreak: Math.max(longestStreak, currentStreak),
+      lastCompletedAt: goalProgress[0].completedAt,
     };
   }, []);
 
@@ -183,9 +195,12 @@ export function usePlans() {
   }, [calculateStreak]);
 
   // Check if a goal is unlocked in training mode
-  const isGoalUnlocked = useCallback((goalId: string, _planId: string): boolean => {
+  const isGoalUnlocked = useCallback((goalId: string, planId: string): boolean => {
+    const plan = plans.find(p => p.id === planId);
+    if (!plan?.isTrainingMode) return true; // Normal mode, always unlocked
+    
     const trainingGoal = trainingGoals[goalId];
-    if (!trainingGoal) return true; // Not in training mode
+    if (!trainingGoal) return false; // In training mode but no config = locked
     
     // Check if already unlocked
     if (trainingGoal.isUnlocked) return true;
@@ -216,7 +231,7 @@ export function usePlans() {
           return false;
       }
     });
-  }, [trainingGoals, streaks]);
+  }, [trainingGoals, streaks, plans]);
 
   // Add a new plan
   const addPlan = useCallback(async (data: Omit<Plan, 'id' | 'userId' | 'createdAt' | 'updatedAt' | 'deletedAt'>) => {
@@ -301,35 +316,53 @@ export function usePlans() {
 
   // Toggle training mode for a plan
   const toggleTrainingMode = useCallback(async (planId: string, enabled: boolean) => {
+    const plan = plans.find(p => p.id === planId);
+    if (!plan) return;
+
+    // Confirmation when disabling training mode
+    if (!enabled && plan.isTrainingMode) {
+      const confirmed = confirm(
+        'Tắt chế độ rèn luyện sẽ làm mất tiến độ mở khóa các mục tiêu. ' +
+        'Bạn sẽ có thể thấy và hoàn thành tất cả mục tiêu ngay lập tức. ' +
+        'Bật lại sau này sẽ bắt đầu từ đầu.\n\n' +
+        'Bạn có chắc muốn tắt?'
+      );
+      if (!confirmed) return;
+      
+      // Clear training goals data when disabling
+      const updatedTrainingGoals = { ...trainingGoals };
+      plan.goalIds.forEach(goalId => {
+        delete updatedTrainingGoals[goalId];
+      });
+      setTrainingGoals(updatedTrainingGoals);
+    }
+    
     await updatePlan(planId, { isTrainingMode: enabled });
     
     if (enabled) {
       // Initialize training goals when enabling training mode
-      const plan = plans.find(p => p.id === planId);
-      if (plan) {
-        const newTrainingGoals: Record<string, TrainingGoal> = {};
-        plan.goalIds.forEach((goalId, index) => {
-          const isFirstGoal = index === 0;
-          newTrainingGoals[goalId] = {
-            goalId,
-            planId,
-            order: index + 1,
-            unlockConditions: isFirstGoal 
-              ? [] // First goal is always unlocked
-              : [{ 
-                  type: 'streak', 
-                  targetGoalId: plan.goalIds[index - 1],
-                  requiredStreak: 7 // Require 7-day streak on previous goal
-                }],
-            isUnlocked: isFirstGoal,
-            minStreakToUnlock: 7,
-            dependsOnGoalId: isFirstGoal ? undefined : plan.goalIds[index - 1],
-          };
-        });
-        setTrainingGoals(prev => ({ ...prev, ...newTrainingGoals }));
-      }
+      const newTrainingGoals: Record<string, TrainingGoal> = {};
+      plan.goalIds.forEach((goalId, index) => {
+        const isFirstGoal = index === 0;
+        newTrainingGoals[goalId] = {
+          goalId,
+          planId,
+          order: index + 1,
+          unlockConditions: isFirstGoal 
+            ? [] // First goal is always unlocked
+            : [{ 
+                type: 'streak', 
+                targetGoalId: plan.goalIds[index - 1],
+                requiredStreak: 7 // Require 7-day streak on previous goal
+              }],
+          isUnlocked: isFirstGoal,
+          minStreakToUnlock: 7,
+          dependsOnGoalId: isFirstGoal ? undefined : plan.goalIds[index - 1],
+        };
+      });
+      setTrainingGoals(prev => ({ ...prev, ...newTrainingGoals }));
     }
-  }, [plans, updatePlan]);
+  }, [plans, updatePlan, trainingGoals]);
 
   // Get goals for a plan ordered by training sequence
   const getOrderedPlanGoals = useCallback((planId: string, allGoals: any[]) => {
