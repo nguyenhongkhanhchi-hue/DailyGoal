@@ -247,7 +247,7 @@ export function TodayTab() {
   const [selectedDate, setSelectedDate] = useState(() => new Date());
   const [followToday, setFollowToday] = useState(true);
   const [calendarOpen, setCalendarOpen] = useState(false);
-  const { goals, loading: goalsLoading } = useGoals();
+  const { goals, loading: goalsLoading, updateGoal } = useGoals();
   const { progress, loading: progressLoading, toggleGoalCompletion, addChecklistItem, toggleChecklistItem, removeChecklistItem, updateChecklistItemText, updateChecklistItemDeadline, updateChecklistItemReminder } = useDailyProgress(selectedDate);
   const [showConfetti, setShowConfetti] = useState(false);
   const [orderGoalIds, setOrderGoalIds] = useState<string[]>([]);
@@ -1460,6 +1460,12 @@ export function TodayTab() {
                                 e.preventDefault();
                                 const text = newChecklistText[goal.id] ?? '';
                                 if (!text.trim()) return;
+                                
+                                // Auto-set hasSubtasks = true if it's the first checklist item
+                                if (!goal.hasSubtasks) {
+                                  await updateGoal(goal.id, { hasSubtasks: true });
+                                }
+                                
                                 await addChecklistItem(goal.id, text);
                                 setNewChecklistText(prev => ({ ...prev, [goal.id]: '' }));
                               }}
