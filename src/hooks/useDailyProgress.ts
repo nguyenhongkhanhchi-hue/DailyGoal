@@ -30,9 +30,10 @@ export function useDailyProgress(date: Date = new Date()) {
     return `${LEGACY_STORAGE_KEY}_${userId}`;
   }, [userId]);
 
-  // Load from localStorage (guest mode)
+  // Load from localStorage (guest mode OR when not authenticated)
   useEffect(() => {
-    if (user && !guestMode) return; // Only load from localStorage in guest mode
+    const shouldUseLocalStorage = !user || guestMode;
+    if (!shouldUseLocalStorage) return;
     
     const savedProgress = localStorage.getItem(getStorageKey());
     if (savedProgress) {
@@ -222,7 +223,7 @@ export function useDailyProgress(date: Date = new Date()) {
       return [...prev, next];
     });
     
-    // Save to localStorage if guest mode
+    // Save to localStorage (always save for backup, especially for guestMode)
     if (!user || guestMode) {
       const savedProgress = localStorage.getItem(getStorageKey());
       const parsed = savedProgress ? JSON.parse(savedProgress) : [];
@@ -233,16 +234,17 @@ export function useDailyProgress(date: Date = new Date()) {
         parsed.push(next);
       }
       localStorage.setItem(getStorageKey(), JSON.stringify(parsed));
-      return;
     }
     
-    // Save to Firestore if authenticated
-    const progressRef = doc(db, 'progress', next.id);
-    await setDoc(progressRef, {
-      ...next,
-      userId: user.uid,
-      updatedAt: serverTimestamp(),
-    });
+    // Save to Firestore if authenticated (and not guest mode)
+    if (user && !guestMode) {
+      const progressRef = doc(db, 'progress', next.id);
+      await setDoc(progressRef, {
+        ...next,
+        userId: user.uid,
+        updatedAt: serverTimestamp(),
+      });
+    }
   }, [dateString, progress, user, guestMode, getStorageKey]);
 
   const computeCompletionFromChecklist = (checklist: ChecklistItem[] | undefined) => {
