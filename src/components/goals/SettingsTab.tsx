@@ -218,17 +218,25 @@ export function SettingsTab() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.title.trim()) return;
+    console.log('handleSubmit called, formData:', formData);
+    if (!formData.title.trim()) {
+      console.log('Title is empty, returning');
+      return;
+    }
 
     try {
+      console.log('Calling addGoal with:', formData);
       if (editingGoal) {
         await updateGoal(editingGoal, formData);
+        console.log('updateGoal success');
       } else {
         await addGoal(formData);
+        console.log('addGoal success');
       }
       setIsDialogOpen(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving goal:', error);
+      alert('Lỗi: ' + (error.message || 'Không thể lưu mục tiêu'));
     }
   };
 
@@ -308,6 +316,30 @@ export function SettingsTab() {
 
   return (
     <div className="space-y-4 pb-20">
+      {/* User Info */}
+      {user && (
+        <Card className="border-0 shadow-md bg-gradient-to-r from-violet-50 to-fuchsia-50 dark:from-violet-900/20 dark:to-fuchsia-900/20">
+          <CardContent className="p-3">
+            <div className="flex items-center gap-3">
+              {user.photoURL ? (
+                <img src={user.photoURL} alt="" className="w-10 h-10 rounded-full" />
+              ) : (
+                <div className="w-10 h-10 rounded-full bg-violet-500 flex items-center justify-center text-white font-bold">
+                  {user.email?.[0].toUpperCase() || '?'}
+                </div>
+              )}
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-sm truncate">{user.displayName || 'Người dùng'}</p>
+                <p className="text-xs text-gray-500 truncate">{user.email}</p>
+              </div>
+              <div className="text-xs px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-600 rounded-full">
+                ✓ Đã đăng nhập
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <h3 className="font-semibold flex items-center gap-2">

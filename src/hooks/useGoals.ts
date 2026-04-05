@@ -136,6 +136,8 @@ export function useGoals() {
   }, []);
 
   const addGoal = useCallback(async (goalData: Omit<Goal, 'id' | 'userId' | 'createdAt' | 'updatedAt'>) => {
+    console.log('addGoal called:', { user: !!user, guestMode, goalData });
+    
     const newGoal: Goal = {
       ...goalData,
       id: crypto.randomUUID(),
@@ -146,19 +148,27 @@ export function useGoals() {
 
     if (user) {
       // Firestore for logged in users
-      const newGoalRef = doc(collection(db, 'goals'));
-      await setDoc(newGoalRef, {
-        ...goalData,
-        id: newGoalRef.id,
-        userId: user.uid,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
+      try {
+        const newGoalRef = doc(collection(db, 'goals'));
+        await setDoc(newGoalRef, {
+          ...goalData,
+          dependencies: goalData.dependencies || [],
+          id: newGoalRef.id,
+          userId: user.uid,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
+        console.log('Goal saved to Firestore:', newGoalRef.id);
+      } catch (err) {
+        console.error('Firestore error:', err);
+        throw err;
+      }
     } else if (guestMode) {
       // localStorage for guest mode
       const updatedGoals = [...goals, newGoal];
       setGoals(updatedGoals);
       saveToLocalStorage(updatedGoals);
+      console.log('Goal saved to localStorage:', newGoal.id);
     } else {
       throw new Error('User not authenticated and not in guest mode');
     }
