@@ -153,6 +153,7 @@ export function useGoals() {
         await setDoc(newGoalRef, {
           ...goalData,
           dependencies: goalData.dependencies || [],
+          deletedAt: null,
           id: newGoalRef.id,
           userId: user.uid,
           createdAt: serverTimestamp(),
