@@ -4,19 +4,50 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
-import { Target, Lock } from 'lucide-react';
+import { Target, Mail, Lock, Chrome, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 export function LoginPage() {
-  const { loginWithPassword } = useAuth();
+  const { loginWithPassword, registerWithPassword, loginWithGoogle } = useAuth();
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState(false);
+  const [isRegistering, setIsRegistering] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const success = loginWithPassword(password);
-    if (!success) {
-      setError(true);
-      setTimeout(() => setError(false), 1000);
+    if (!email.trim() || !password.trim()) {
+      toast.error('Vui lòng nhập email và mật khẩu');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const success = isRegistering
+        ? await registerWithPassword(email, password)
+        : await loginWithPassword(email, password);
+      
+      if (!success) {
+        toast.error(isRegistering ? 'Đăng ký thất bại' : 'Email hoặc mật khẩu không đúng');
+      }
+    } catch (error) {
+      toast.error('Có lỗi xảy ra, vui lòng thử lại');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    setIsLoading(true);
+    try {
+      const success = await loginWithGoogle();
+      if (!success) {
+        toast.error('Đăng nhập Google thất bại');
+      }
+    } catch (error) {
+      toast.error('Có lỗi xảy ra, vui lòng thử lại');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -42,29 +73,85 @@ export function LoginPage() {
               <h1 className="text-2xl font-bold bg-gradient-to-r from-violet-600 to-fuchsia-600 bg-clip-text text-transparent">
                 DailyGoal
               </h1>
+              <p className="text-sm text-gray-500 mt-1">
+                {isRegistering ? 'Tạo tài khoản mới' : 'Đăng nhập để đồng bộ'}
+              </p>
             </div>
 
+            {/* Google Sign In */}
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleGoogleLogin}
+              disabled={isLoading}
+              className="w-full h-12 mb-4 border-gray-300 hover:bg-gray-50"
+            >
+              {isLoading ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <Chrome className="w-5 h-5 text-red-500 mr-2" />
+              )}
+              <span>Đăng nhập với Google</span>
+            </Button>
+
+            <div className="relative mb-4">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-200" />
+              </div>
+              <div className="relative flex justify-center text-xs">
+                <span className="px-2 bg-white dark:bg-gray-900 text-gray-500">hoặc</span>
+              </div>
+            </div>
+
+            {/* Email/Password Form */}
             <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <Input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Email..."
+                  disabled={isLoading}
+                  className="pl-10 h-12"
+                />
+              </div>
+
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <Input
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Nhập mật khẩu..."
-                  className={`pl-10 h-12 text-center transition-all ${
-                    error ? 'border-red-500 shake' : ''
-                  }`}
+                  placeholder="Mật khẩu..."
+                  disabled={isLoading}
+                  className="pl-10 h-12"
                 />
               </div>
-              
+
               <Button
                 type="submit"
+                disabled={isLoading}
                 className="w-full h-12 bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600"
               >
-                Vào app
+                {isLoading ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  isRegistering ? 'Đăng ký' : 'Đăng nhập'
+                )}
               </Button>
             </form>
+
+            {/* Toggle Register/Login */}
+            <div className="mt-4 text-center">
+              <button
+                type="button"
+                onClick={() => setIsRegistering(!isRegistering)}
+                className="text-sm text-violet-600 hover:underline"
+              >
+                {isRegistering ? 'Đã có tài khoản? Đăng nhập' : 'Chưa có tài khoản? Đăng ký'}
+              </button>
+            </div>
           </CardContent>
         </Card>
       </motion.div>

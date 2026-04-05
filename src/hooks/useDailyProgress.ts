@@ -1,23 +1,35 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { db } from '@/lib/firebase/config';
+import {
+  collection,
+  doc,
+  setDoc,
+  onSnapshot,
+  query,
+  where,
+  serverTimestamp,
+  writeBatch,
+} from 'firebase/firestore';
 import type { ChecklistItem, DailyProgress } from '@/types';
 import { format, subDays } from 'date-fns';
 
 const LEGACY_STORAGE_KEY = 'dailygoal_progress';
-const getStorageKey = (userId: string) => `${LEGACY_STORAGE_KEY}_${userId}`;
 
 export function useDailyProgress(date: Date = new Date()) {
   const { user } = useAuth();
   const [progress, setProgress] = useState<DailyProgress[]>([]);
   const [loading, setLoading] = useState(true);
+  const [migrated, setMigrated] = useState(false);
 
   const dateString = format(date, 'yyyy-MM-dd');
 
   const createChecklistItemId = () => {
     if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return crypto.randomUUID();
-    return `item_${Date.now()}`;
+    return `item_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   };
 
+  // Subscribe to Firestore progress
   useEffect(() => {
     if (!user) {
       setProgress([]);
@@ -25,33 +37,76 @@ export function useDailyProgress(date: Date = new Date()) {
       return;
     }
 
-    const storageKey = getStorageKey(user.uid);
-    const savedProgress = localStorage.getItem(storageKey) ?? localStorage.getItem(LEGACY_STORAGE_KEY);
-    if (savedProgress) {
-      const parsed = JSON.parse(savedProgress);
-      const filtered = parsed.filter((p: DailyProgress) => !p.userId || p.userId === user.uid);
-      const hydrated = filtered.map((p: any) => ({
-        ...p,
-        userId: p.userId ?? user.uid,
-        completedAt: p.completedAt ? new Date(p.completedAt) : undefined,
-        checklist: Array.isArray(p.checklist) ? p.checklist : undefined,
-      }));
+    setLoading(true);
+    const q = query(
+      collection(db, 'progress'),
+      where('userId', '==', user.uid)
+    );
 
-      setProgress(hydrated);
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const progressData: DailyProgress[] = [];
+      snapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+        progressData.push({
+          id: docSnap.id,
+          ...data,
+          userId: data.userId,
+          completedAt: data.completedAt?.toDate() || undefined,
+          checklist: Array.isArray(data.checklist) ? data.checklist : undefined,
+        } as DailyProgress);
+      });
+      setProgress(progressData);
+      setLoading(false);
+    });
 
-      if (!localStorage.getItem(storageKey)) {
-        localStorage.setItem(storageKey, JSON.stringify(hydrated));
+    return () => unsubscribe();
+  }, [user]);
+
+  // Migration from localStorage
+  useEffect(() => {
+    if (!user || migrated || progress.length > 0) return;
+
+    const migrateData = async () => {
+      const savedProgress = localStorage.getItem(`${LEGACY_STORAGE_KEY}_${user.uid}`) ?? 
+                           localStorage.getItem(LEGACY_STORAGE_KEY);
+      
+      if (!savedProgress) {
+        setMigrated(true);
+        return;
       }
-    } else {
-      setProgress([]);
-    }
-    setLoading(false);
-  }, [user, dateString]);
 
-  const saveProgress = useCallback((newProgress: DailyProgress[]) => {
+      try {
+        const parsed = JSON.parse(savedProgress);
+        const batch = writeBatch(db);
+        let count = 0;
+
+        parsed.forEach((p: any) => {
+          if ((!p.userId || p.userId === user.uid) && count < 500) {
+            const progressRef = doc(collection(db, 'progress'));
+            batch.set(progressRef, {
+              ...p,
+              id: progressRef.id,
+              userId: user.uid,
+            });
+            count++;
+          }
+        });
+
+        await batch.commit();
+        setMigrated(true);
+      } catch (error) {
+        console.error('Migration error:', error);
+        setMigrated(true);
+      }
+    };
+
+    migrateData();
+  }, [user, migrated, progress.length]);
+
+  const saveProgress = useCallback(async (newProgress: DailyProgress[]) => {
     if (!user) return;
-    localStorage.setItem(getStorageKey(user.uid), JSON.stringify(newProgress));
-    setProgress(newProgress);
+    // Firestore realtime subscription sẽ tự cập nhật state
+    // Hàm này giữ lại để tương thích với code cũ nếu cần
   }, [user]);
 
   // Auto-copy overdue checklist items from yesterday to today
@@ -130,12 +185,20 @@ export function useDailyProgress(date: Date = new Date()) {
     }
   }, [dateString, user, loading, progress, saveProgress]);
 
-  const upsertProgressForGoalAndDate = useCallback((goalId: string, updater: (current: DailyProgress | undefined) => DailyProgress) => {
+  const upsertProgressForGoalAndDate = useCallback(async (goalId: string, updater: (current: DailyProgress | undefined) => DailyProgress) => {
+    if (!user) return;
+    
     const existing = progress.find(p => p.goalId === goalId && p.date === dateString);
     const next = updater(existing);
-    const withoutExisting = progress.filter(p => !(p.goalId === goalId && p.date === dateString));
-    saveProgress([...withoutExisting, next]);
-  }, [dateString, progress, saveProgress]);
+    
+    // Ghi vào Firestore
+    const progressRef = doc(db, 'progress', next.id);
+    await setDoc(progressRef, {
+      ...next,
+      userId: user.uid,
+      updatedAt: serverTimestamp(),
+    });
+  }, [dateString, progress, user]);
 
   const computeCompletionFromChecklist = (checklist: ChecklistItem[] | undefined) => {
     if (!checklist || checklist.length === 0) return { completed: false, completedAt: undefined as Date | undefined };
@@ -332,28 +395,36 @@ export function useProgressHistory(startDate: Date, endDate: Date) {
       return;
     }
 
-    const storageKey = getStorageKey(user.uid);
-    const savedProgress = localStorage.getItem(storageKey) ?? localStorage.getItem(LEGACY_STORAGE_KEY);
-    if (savedProgress) {
-      const parsed = JSON.parse(savedProgress);
+    const q = query(
+      collection(db, 'progress'),
+      where('userId', '==', user.uid)
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const progressData: DailyProgress[] = [];
+      snapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+        progressData.push({
+          id: docSnap.id,
+          ...data,
+          userId: data.userId,
+          completedAt: data.completedAt?.toDate() || undefined,
+          checklist: Array.isArray(data.checklist) ? data.checklist : undefined,
+        } as DailyProgress);
+      });
+      
       const startStr = format(startDate, 'yyyy-MM-dd');
       const endStr = format(endDate, 'yyyy-MM-dd');
       
-      const filtered = parsed.filter((p: DailyProgress) => 
-        (!p.userId || p.userId === user.uid) && p.date >= startStr && p.date <= endStr
+      const filtered = progressData.filter((p: DailyProgress) => 
+        p.date >= startStr && p.date <= endStr
       );
       
-      setHistory(filtered.map((p: any) => ({
-        ...p,
-        userId: p.userId ?? user.uid,
-        completedAt: p.completedAt ? new Date(p.completedAt) : undefined,
-        checklist: Array.isArray(p.checklist) ? p.checklist : undefined,
-      })));
-      if (!localStorage.getItem(storageKey)) {
-        localStorage.setItem(storageKey, JSON.stringify(filtered));
-      }
-    }
-    setLoading(false);
+      setHistory(filtered);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
   }, [user, startDate, endDate]);
 
   return { history, loading };

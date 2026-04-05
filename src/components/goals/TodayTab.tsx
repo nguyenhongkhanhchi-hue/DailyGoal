@@ -669,6 +669,7 @@ export function TodayTab() {
 
   // Calculate daily time stats (24 hours total)
   const dailyTimeStats = useMemo(() => {
+    const selectedDateStr = format(selectedDate, 'yyyy-MM-dd');
     let totalTrackedTime = 0;
     
     goalsForSelectedDate.forEach(goal => {
@@ -679,15 +680,27 @@ export function TodayTab() {
         const itemKey = `${goal.id}-${idx}`;
         const data = itemData[itemKey];
         if (data) {
-          // Calculate time from timer sessions
-          totalTrackedTime += data.timerSessions.reduce((acc, session) => 
-            acc + (session.endTime ? session.endTime - session.startTime : 0), 0);
+          // Calculate time from timer sessions - only for selected date
+          totalTrackedTime += data.timerSessions.reduce((acc, session) => {
+            const sessionDate = format(new Date(session.startTime), 'yyyy-MM-dd');
+            if (sessionDate === selectedDateStr && session.endTime) {
+              return acc + (session.endTime - session.startTime);
+            }
+            return acc;
+          }, 0);
           
-          // Add running timer time
+          // Add running timer time - only if started on selected date
           if (data.timerRunning) {
-            totalTrackedTime += currentTime - data.timerStartTime + data.timerElapsedWhenPaused;
+            const timerDate = format(new Date(data.timerStartTime), 'yyyy-MM-dd');
+            if (timerDate === selectedDateStr) {
+              totalTrackedTime += currentTime - data.timerStartTime + data.timerElapsedWhenPaused;
+            }
           } else {
-            totalTrackedTime += data.timerElapsedWhenPaused;
+            // Only count paused time if the timer was started on selected date
+            const timerDate = format(new Date(data.timerStartTime), 'yyyy-MM-dd');
+            if (timerDate === selectedDateStr) {
+              totalTrackedTime += data.timerElapsedWhenPaused;
+            }
           }
         }
       });

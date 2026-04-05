@@ -1,4 +1,13 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import {
+  onAuthStateChanged,
+  signInWithPopup,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signOut,
+  type User as FirebaseUser,
+} from 'firebase/auth';
+import { auth, googleProvider } from '@/lib/firebase/config';
 
 interface User {
   uid: string;
@@ -10,49 +19,76 @@ interface User {
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  loginWithPassword: (password: string) => boolean;
-  logout: () => void;
+  loginWithPassword: (email: string, password: string) => Promise<boolean>;
+  registerWithPassword: (email: string, password: string) => Promise<boolean>;
+  loginWithGoogle: () => Promise<boolean>;
+  logout: () => Promise<void>;
 }
 
-const CORRECT_PASSWORD = 'colennghiemoi';
-
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+function mapFirebaseUser(fbUser: FirebaseUser): User {
+  return {
+    uid: fbUser.uid,
+    email: fbUser.email,
+    displayName: fbUser.displayName,
+    photoURL: fbUser.photoURL,
+  };
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check if user is already logged in
-    const savedUser = localStorage.getItem('dailygoal_user');
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
-    }
-    setLoading(false);
+    const unsubscribe = onAuthStateChanged(auth, (fbUser) => {
+      if (fbUser) {
+        setUser(mapFirebaseUser(fbUser));
+      } else {
+        setUser(null);
+      }
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
   }, []);
 
-  const loginWithPassword = (password: string): boolean => {
-    if (password === CORRECT_PASSWORD) {
-      const newUser = {
-        uid: 'user_' + Date.now(),
-        email: 'user@dailygoal.app',
-        displayName: 'Bạn',
-        photoURL: null,
-      };
-      setUser(newUser);
-      localStorage.setItem('dailygoal_user', JSON.stringify(newUser));
+  const loginWithPassword = async (email: string, password: string): Promise<boolean> => {
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
       return true;
+    } catch (error) {
+      console.error('Login error:', error);
+      return false;
     }
-    return false;
   };
 
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem('dailygoal_user');
+  const registerWithPassword = async (email: string, password: string): Promise<boolean> => {
+    try {
+      await createUserWithEmailAndPassword(auth, email, password);
+      return true;
+    } catch (error) {
+      console.error('Register error:', error);
+      return false;
+    }
+  };
+
+  const loginWithGoogle = async (): Promise<boolean> => {
+    try {
+      await signInWithPopup(auth, googleProvider);
+      return true;
+    } catch (error) {
+      console.error('Google login error:', error);
+      return false;
+    }
+  };
+
+  const logout = async (): Promise<void> => {
+    await signOut(auth);
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, loginWithPassword, logout }}>
+    <AuthContext.Provider value={{ user, loading, loginWithPassword, registerWithPassword, loginWithGoogle, logout }}>
       {children}
     </AuthContext.Provider>
   );
