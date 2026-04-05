@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { CalendarDays, BarChart3, Settings } from 'lucide-react';
+import { CalendarDays, BarChart3, Settings, Target } from 'lucide-react';
 import type { TabType } from '@/types';
 
 interface BottomNavProps {
@@ -9,6 +9,7 @@ interface BottomNavProps {
 
 const tabs: { id: TabType; label: string; icon: typeof CalendarDays }[] = [
   { id: 'today', label: 'Hôm nay', icon: CalendarDays },
+  { id: 'plans', label: 'Kế hoạch', icon: Target },
   { id: 'stats', label: 'Thống kê', icon: BarChart3 },
   { id: 'settings', label: 'Cài đặt', icon: Settings },
 ];

@@ -3,18 +3,22 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePWAUpdate } from '@/hooks/usePWAUpdate';
 import { LoginPage } from '@/components/auth/LoginPage';
 import { Header } from '@/components/layout/Header';
 import { BottomNav } from '@/components/layout/BottomNav';
 import { TodayTab } from '@/components/goals/TodayTab';
+import { PlansTab } from '@/components/goals/PlansTab';
 import { StatsTab } from '@/components/charts/StatsTab';
 import { SettingsTab } from '@/components/goals/SettingsTab';
+import { PWAUpdatePrompt } from '@/components/PWAUpdatePrompt';
 import { Toaster } from '@/components/ui/sonner';
 import type { TabType } from '@/types';
 import './App.css';
 
 function AppContent() {
   const { user, loading, guestMode } = useAuth();
+  const { needRefresh, updateSW } = usePWAUpdate();
   const [activeTab, setActiveTab] = useState<TabType>('today');
 
   if (loading) {
@@ -51,6 +55,7 @@ function AppContent() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 via-gray-50 to-violet-50/40 dark:from-gray-950 dark:via-gray-950 dark:to-violet-950/20 transition-colors duration-300">
+      <PWAUpdatePrompt needRefresh={needRefresh} onUpdate={updateSW} />
       <Header />
       
       <main className="max-w-lg mx-auto px-4 pt-3 pb-28">
@@ -64,6 +69,7 @@ function AppContent() {
             className="origin-top"
           >
             {activeTab === 'today' && <TodayTab />}
+            {activeTab === 'plans' && <PlansTab />}
             {activeTab === 'stats' && <StatsTab />}
             {activeTab === 'settings' && <SettingsTab />}
           </motion.div>

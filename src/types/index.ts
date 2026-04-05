@@ -92,4 +92,52 @@ export interface MonthlyStats {
 
 export type ViewMode = 'day' | 'week' | 'month' | 'quarter' | 'year';
 
-export type TabType = 'today' | 'stats' | 'settings';
+export type TabType = 'today' | 'stats' | 'settings' | 'plans';
+
+// Plan: Cấp độ cao hơn Goal, chứa nhiều goals
+export interface Plan {
+  id: string;
+  userId: string;
+  title: string;
+  description?: string;
+  icon?: string;
+  color?: string;
+  goalIds: string[]; // IDs of goals in this plan
+  isTrainingMode: boolean; // Bật chế độ rèn luyện
+  createdAt: Date;
+  updatedAt: Date;
+  deletedAt?: Date;
+}
+
+// Training Mode: Streak tracking và unlock conditions
+export interface GoalStreak {
+  goalId: string;
+  currentStreak: number; // Số ngày/tuần liên tiếp hiện tại
+  longestStreak: number;
+  lastCompletedAt?: Date;
+  streakHistory: StreakRecord[];
+}
+
+export interface StreakRecord {
+  date: string; // YYYY-MM-DD
+  completed: boolean;
+}
+
+export interface UnlockCondition {
+  type: 'streak' | 'goal_completed' | 'days_passed';
+  targetGoalId?: string; // Goal cần đạt streak (nếu type='streak')
+  requiredStreak?: number; // Số ngày/tuần cần đạt
+  requiredGoalId?: string; // Goal cần hoàn thành (nếu type='goal_completed')
+  requiredDays?: number; // Số ngày cần trôi qua (nếu type='days_passed')
+}
+
+export interface TrainingGoal {
+  goalId: string;
+  planId: string;
+  order: number; // Thứ tự trong kế hoạch (1, 2, 3...)
+  unlockConditions: UnlockCondition[]; // Điều kiện mở khóa
+  isUnlocked: boolean;
+  unlockedAt?: Date;
+  minStreakToUnlock: number; // Số streak tối thiểu để mở khóa
+  dependsOnGoalId?: string; // Goal phụ thuộc trước đó
+}
