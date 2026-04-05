@@ -19,6 +19,7 @@ interface GoalFormData {
   scheduleType: 'daily' | 'weekly' | 'specific';
   specificDate: string;
   weekDays: number[];
+  dependencies: string[];
 }
 
 interface MonthlyExpense {
@@ -36,6 +37,7 @@ interface GoalFormData {
   scheduleType: 'daily' | 'weekly' | 'specific';
   specificDate: string;
   weekDays: number[];
+  dependencies: string[];
 }
 
 const iconOptions = [
@@ -106,6 +108,7 @@ export function SettingsTab() {
     scheduleType: 'daily',
     specificDate: '',
     weekDays: [],
+    dependencies: [],
   });
   
   const [monthlyExpenses, setMonthlyExpenses] = useState<MonthlyExpense[]>([]);
@@ -184,6 +187,7 @@ export function SettingsTab() {
       scheduleType: 'daily',
       specificDate: '',
       weekDays: [],
+      dependencies: [],
     });
     setIsDialogOpen(true);
   };
@@ -198,6 +202,7 @@ export function SettingsTab() {
       scheduleType: goal.scheduleType || 'daily',
       specificDate: goal.specificDate || '',
       weekDays: goal.weekDays || [],
+      dependencies: goal.dependencies || [],
     });
     setIsDialogOpen(true);
   };
@@ -647,6 +652,51 @@ export function SettingsTab() {
                 }`} />
               </button>
             </div>
+
+            {/* Dependencies Selection */}
+            {activeGoals.length > 0 && (
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                  <span>🔗</span> Mục tiêu phụ thuộc
+                </Label>
+                <p className="text-xs text-gray-500">
+                  Chọn mục tiêu cần hoàn thành trước khi mục tiêu này được tính hoàn thành
+                </p>
+                <div className="space-y-2 max-h-40 overflow-y-auto p-2 bg-gray-50 dark:bg-gray-800/50 rounded-xl">
+                  {activeGoals
+                    .filter(g => g.id !== editingGoal) // Can't depend on itself
+                    .map(goal => (
+                      <label
+                        key={goal.id}
+                        className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={formData.dependencies?.includes(goal.id) || false}
+                          onChange={(e) => {
+                            const deps = formData.dependencies || [];
+                            if (e.target.checked) {
+                              setFormData({ ...formData, dependencies: [...deps, goal.id] });
+                            } else {
+                              setFormData({ ...formData, dependencies: deps.filter(id => id !== goal.id) });
+                            }
+                          }}
+                          className="w-4 h-4 rounded border-gray-300 text-violet-500 focus:ring-violet-500"
+                        />
+                        <div 
+                          className="w-8 h-8 rounded-lg flex items-center justify-center"
+                          style={{ backgroundColor: `${goal.color || '#8b5cf6'}20` }}
+                        >
+                          <span className="text-sm">
+                            {iconOptions.find(i => i.id === goal.icon)?.emoji || '✨'}
+                          </span>
+                        </div>
+                        <span className="text-sm flex-1">{goal.title}</span>
+                      </label>
+                    ))}
+                </div>
+              </div>
+            )}
 
             {/* Actions */}
             <div className="flex gap-2 pt-2">

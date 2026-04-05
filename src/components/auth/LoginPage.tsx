@@ -4,11 +4,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
-import { Target, Mail, Lock, Chrome, Loader2 } from 'lucide-react';
+import { Target, Mail, Lock, Chrome, Loader2, User } from 'lucide-react';
 import { toast } from 'sonner';
 
 export function LoginPage() {
-  const { loginWithPassword, registerWithPassword, loginWithGoogle } = useAuth();
+  const { loginWithPassword, registerWithPassword, loginWithGoogle, enableGuestMode } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isRegistering, setIsRegistering] = useState(false);
@@ -151,6 +151,22 @@ export function LoginPage() {
               >
                 {isRegistering ? 'Đã có tài khoản? Đăng nhập' : 'Chưa có tài khoản? Đăng ký'}
               </button>
+            </div>
+
+            {/* Continue without login */}
+            <div className="mt-4 pt-4 border-t border-gray-200">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={enableGuestMode}
+                className="w-full text-gray-500 hover:text-gray-700"
+              >
+                <User className="w-4 h-4 mr-2" />
+                Tiếp tục không đăng nhập
+              </Button>
+              <p className="text-xs text-gray-400 text-center mt-2">
+                Dữ liệu chỉ lưu trên thiết bị này
+              </p>
             </div>
           </CardContent>
         </Card>

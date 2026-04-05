@@ -760,6 +760,31 @@ export function TodayTab() {
     }
   }, [showConfetti, totals.completionRate, totals.totalUnits]);
 
+  const handleToggleGoal = (goalId: string) => {
+    const goal = goals.find(g => g.id === goalId);
+    if (!goal) return;
+
+    // Check if goal has dependencies
+    if (goal.dependencies && goal.dependencies.length > 0) {
+      const uncompletedDeps = goal.dependencies.filter(depId => {
+        const depProgress = progressByGoalId.get(depId);
+        return !depProgress?.completed;
+      });
+
+      if (uncompletedDeps.length > 0) {
+        const depNames = uncompletedDeps.map(depId => {
+          const depGoal = goals.find(g => g.id === depId);
+          return depGoal?.title || 'Mục tiêu không xác định';
+        }).join(', ');
+        
+        alert(`Không thể hoàn thành mục tiêu này!\n\nCần hoàn thành trước: ${depNames}`);
+        return;
+      }
+    }
+
+    toggleGoalCompletion(goalId);
+  };
+
   const handlePrevDay = () => {
     setFollowToday(false);
     setSelectedDate(prev => subDays(prev, 1));
@@ -1029,7 +1054,7 @@ export function TodayTab() {
                           type="button"
                           variant="ghost"
                           size="icon"
-                          onClick={() => toggleGoalCompletion(goal.id)}
+                          onClick={() => handleToggleGoal(goal.id)}
                           className={`h-7 w-7 ${isCompleted ? 'text-violet-500' : 'text-gray-400'}`}
                         >
                           {isCompleted ? (

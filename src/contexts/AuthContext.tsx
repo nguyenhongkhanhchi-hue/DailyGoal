@@ -19,6 +19,8 @@ interface User {
 interface AuthContextType {
   user: User | null;
   loading: boolean;
+  guestMode: boolean;
+  enableGuestMode: () => void;
   loginWithPassword: (email: string, password: string) => Promise<boolean>;
   registerWithPassword: (email: string, password: string) => Promise<boolean>;
   loginWithGoogle: () => Promise<boolean>;
@@ -39,6 +41,7 @@ function mapFirebaseUser(fbUser: FirebaseUser): User {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [guestMode, setGuestMode] = useState(false);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (fbUser) => {
@@ -52,6 +55,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     return () => unsubscribe();
   }, []);
+
+  const enableGuestMode = () => {
+    setGuestMode(true);
+  };
 
   const loginWithPassword = async (email: string, password: string): Promise<boolean> => {
     try {
@@ -106,7 +113,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, loginWithPassword, registerWithPassword, loginWithGoogle, logout }}>
+    <AuthContext.Provider value={{ user, loading, guestMode, enableGuestMode, loginWithPassword, registerWithPassword, loginWithGoogle, logout }}>
       {children}
     </AuthContext.Provider>
   );

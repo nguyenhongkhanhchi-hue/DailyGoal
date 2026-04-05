@@ -14,7 +14,7 @@ import type { TabType } from '@/types';
 import './App.css';
 
 function AppContent() {
-  const { user, loading } = useAuth();
+  const { user, loading, guestMode } = useAuth();
   const [activeTab, setActiveTab] = useState<TabType>('today');
 
   if (loading) {
@@ -44,7 +44,8 @@ function AppContent() {
     );
   }
 
-  if (!user) {
+  // Cho phép vào app nếu đã đăng nhập HOẶC đang ở chế độ khách
+  if (!user && !guestMode) {
     return <LoginPage />;
   }
 

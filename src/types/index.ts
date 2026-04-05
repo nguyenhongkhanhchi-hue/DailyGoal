@@ -18,6 +18,7 @@ export interface Goal {
   scheduleType?: ScheduleType;
   specificDate?: string;
   weekDays?: number[];
+  dependencies?: string[]; // IDs of goals that must be completed before this one
   createdAt: Date;
   updatedAt: Date;
   deletedAt?: Date;
