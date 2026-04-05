@@ -30,11 +30,8 @@ export function useDailyProgress(date: Date = new Date()) {
     return `${LEGACY_STORAGE_KEY}_${userId}`;
   }, [userId]);
 
-  // Load from localStorage (guest mode OR when not authenticated)
+  // Load from localStorage - always try to load first as backup
   useEffect(() => {
-    const shouldUseLocalStorage = !user || guestMode;
-    if (!shouldUseLocalStorage) return;
-    
     const savedProgress = localStorage.getItem(getStorageKey());
     if (savedProgress) {
       try {
@@ -45,22 +42,17 @@ export function useDailyProgress(date: Date = new Date()) {
       }
     }
     setLoading(false);
-  }, [user, guestMode, getStorageKey]);
+  }, [getStorageKey]);
 
   const createChecklistItemId = () => {
     if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return crypto.randomUUID();
     return `item_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   };
 
-  // Subscribe to Firestore progress
+  // Subscribe to Firestore progress (only for authenticated users)
   useEffect(() => {
-    if (!user) {
-      setProgress([]);
-      setLoading(false);
-      return;
-    }
+    if (!user) return;
 
-    setLoading(true);
     const q = query(
       collection(db, 'progress'),
       where('userId', '==', user.uid)
@@ -78,7 +70,11 @@ export function useDailyProgress(date: Date = new Date()) {
           checklist: Array.isArray(data.checklist) ? data.checklist : undefined,
         } as DailyProgress);
       });
-      setProgress(progressData);
+      // Only update from Firestore if there are actual results
+      // Otherwise keep existing progress (from localStorage)
+      if (progressData.length > 0) {
+        setProgress(progressData);
+      }
       setLoading(false);
     });
 
@@ -223,8 +219,8 @@ export function useDailyProgress(date: Date = new Date()) {
       return [...prev, next];
     });
     
-    // Save to localStorage (always save for backup, especially for guestMode)
-    if (!user || guestMode) {
+    // Always save to localStorage as backup (regardless of auth status)
+    {
       const savedProgress = localStorage.getItem(getStorageKey());
       const parsed = savedProgress ? JSON.parse(savedProgress) : [];
       const index = parsed.findIndex((p: DailyProgress) => p.goalId === goalId && p.date === dateString);
