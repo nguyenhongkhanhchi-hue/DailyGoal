@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { useGoals } from '@/hooks/useGoals';
 import { useAuth } from '@/contexts/AuthContext';
 import { Plus, Trash2, Edit2, Target, LogOut, DollarSign, Clock, Download, Upload } from 'lucide-react';
-import type { Goal } from '@/types';
+import type { Goal, Dependency } from '@/types';
 import { format } from 'date-fns';
 
 interface GoalFormData {
@@ -19,25 +19,7 @@ interface GoalFormData {
   scheduleType: 'daily' | 'weekly' | 'specific';
   specificDate: string;
   weekDays: number[];
-  dependencies: string[];
-}
-
-interface MonthlyExpense {
-  id: string;
-  month: string;
-  amount: number;
-  description: string;
-}
-
-interface GoalFormData {
-  title: string;
-  icon: string;
-  color: string;
-  hasSubtasks: boolean;
-  scheduleType: 'daily' | 'weekly' | 'specific';
-  specificDate: string;
-  weekDays: number[];
-  dependencies: string[];
+  dependencies: Dependency[];
 }
 
 const iconOptions = [
@@ -98,8 +80,9 @@ export function SettingsTab() {
   const { user, logout } = useAuth();
   const { goals, loading, addGoal, updateGoal, deleteGoal } = useGoals();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [selectedDependencies, setSelectedDependencies] = useState<Dependency[]>([]);
   const [editingGoal, setEditingGoal] = useState<string | null>(null);
-  const [expenseDialogOpen, setExpenseDialogOpen] = useState(false);
+  const [expandedGoalId, setExpandedGoalId] = useState<string | null>(null);
   const [formData, setFormData] = useState<GoalFormData>({
     title: '',
     icon: 'target',
@@ -687,44 +670,115 @@ export function SettingsTab() {
 
             {/* Dependencies Selection */}
             {activeGoals.length > 0 && (
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2">
                   <span>🔗</span> Mục tiêu phụ thuộc
                 </Label>
                 <p className="text-xs text-gray-500">
-                  Chọn mục tiêu cần hoàn thành trước khi mục tiêu này được tính hoàn thành
+                  Chọn mục tiêu hoặc việc con cần hoàn thành trước
                 </p>
-                <div className="space-y-2 max-h-40 overflow-y-auto p-2 bg-gray-50 dark:bg-gray-800/50 rounded-xl">
-                  {activeGoals
-                    .filter(g => g.id !== editingGoal) // Can't depend on itself
-                    .map(goal => (
-                      <label
-                        key={goal.id}
-                        className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={formData.dependencies?.includes(goal.id) || false}
-                          onChange={(e) => {
-                            const deps = formData.dependencies || [];
-                            if (e.target.checked) {
-                              setFormData({ ...formData, dependencies: [...deps, goal.id] });
-                            } else {
-                              setFormData({ ...formData, dependencies: deps.filter(id => id !== goal.id) });
-                            }
-                          }}
-                          className="w-4 h-4 rounded border-gray-300 text-violet-500 focus:ring-violet-500"
-                        />
-                        <div 
-                          className="w-8 h-8 rounded-lg flex items-center justify-center"
-                          style={{ backgroundColor: `${goal.color || '#8b5cf6'}20` }}
+                
+                {/* Hiển thị dependencies đã chọn */}
+                {formData.dependencies && formData.dependencies.length > 0 && (
+                  <div className="space-y-1">
+                    <p className="text-xs font-medium text-gray-600">Đã chọn:</p>
+                    <div className="flex flex-wrap gap-1">
+                      {formData.dependencies.map((dep) => (
+                        <span
+                          key={dep.id}
+                          className="inline-flex items-center gap-1 px-2 py-1 bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 text-xs rounded-full"
                         >
-                          <span className="text-sm">
-                            {iconOptions.find(i => i.id === goal.icon)?.emoji || '✨'}
-                          </span>
-                        </div>
-                        <span className="text-sm flex-1">{goal.title}</span>
-                      </label>
+                          {dep.type === 'goal' ? (
+                            <>
+                              <span>🎯</span>
+                              <span>{dep.sourceGoalTitle || 'Mục tiêu'}</span>
+                            </>
+                          ) : (
+                            <>
+                              <span>📋</span>
+                              <span>{dep.sourceItemText || 'Việc con'}</span>
+                            </>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setFormData({
+                                ...formData,
+                                dependencies: formData.dependencies.filter(d => d.id !== dep.id)
+                              });
+                            }}
+                            className="ml-1 text-violet-500 hover:text-violet-700"
+                          >
+                            ×
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                {/* Chọn dependency mới */}
+                <div className="space-y-2 max-h-48 overflow-y-auto p-2 bg-gray-50 dark:bg-gray-800/50 rounded-xl">
+                  {activeGoals
+                    .filter(g => g.id !== editingGoal)
+                    .map(goal => (
+                      <div key={goal.id} className="space-y-1">
+                        {/* Goal checkbox */}
+                        <label className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={formData.dependencies?.some(d => d.type === 'goal' && d.sourceGoalId === goal.id) || false}
+                            onChange={(e) => {
+                              const deps = formData.dependencies || [];
+                              if (e.target.checked) {
+                                const newDep: Dependency = {
+                                  id: `dep_${Date.now()}_${goal.id}`,
+                                  type: 'goal',
+                                  sourceGoalId: goal.id,
+                                  sourceGoalTitle: goal.title
+                                };
+                                setFormData({ ...formData, dependencies: [...deps, newDep] });
+                              } else {
+                                setFormData({
+                                  ...formData,
+                                  dependencies: deps.filter(d => !(d.type === 'goal' && d.sourceGoalId === goal.id))
+                                });
+                              }
+                            }}
+                            className="w-4 h-4 rounded border-gray-300 text-violet-500 focus:ring-violet-500"
+                          />
+                          <div 
+                            className="w-8 h-8 rounded-lg flex items-center justify-center"
+                            style={{ backgroundColor: `${goal.color || '#8b5cf6'}20` }}
+                          >
+                            <span className="text-sm">
+                              {iconOptions.find(i => i.id === goal.icon)?.emoji || '✨'}
+                            </span>
+                          </div>
+                          <span className="text-sm flex-1 font-medium">{goal.title}</span>
+                          <span className="text-xs text-gray-400">🎯 Toàn bộ</span>
+                        </label>
+                        
+                        {/* Checklist items của goal này */}
+                        {goal.hasSubtasks && (
+                          <div className="ml-8 space-y-1">
+                            <p className="text-xs text-gray-400 mb-1">Hoặc chọn việc con:</p>
+                            {/* Giả lập các checklist item mẫu - thực tế sẽ load từ progress */}
+                            <div className="space-y-1">
+                              <label className="flex items-center gap-2 p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer text-xs">
+                                <input
+                                  type="checkbox"
+                                  disabled
+                                  className="w-3 h-3 rounded border-gray-300"
+                                />
+                                <span className="text-gray-400 italic">
+                                  (Sẽ hiển thị việc con khi có dữ liệu)
+                                </span>
+                              </label>
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     ))}
                 </div>
               </div>

@@ -18,10 +18,22 @@ export interface Goal {
   scheduleType?: ScheduleType;
   specificDate?: string;
   weekDays?: number[];
-  dependencies?: string[]; // IDs of goals that must be completed before this one
+  dependencies?: Dependency[]; // Mối quan hệ phụ thuộc (goal hoặc checklist item)
   createdAt: Date;
   updatedAt: Date;
   deletedAt?: Date;
+}
+
+// Dependency types: có thể phụ thuộc vào goal hoặc checklist item
+export type DependencyType = 'goal' | 'checklist_item';
+
+export interface Dependency {
+  id: string; // Unique ID cho dependency này
+  type: DependencyType;
+  sourceGoalId: string; // Goal chứa item phụ thuộc (nếu type='checklist_item')
+  sourceItemId?: string; // Checklist item ID (nếu type='checklist_item')
+  sourceGoalTitle?: string; // Tên goal nguồn (để hiển thị)
+  sourceItemText?: string; // Tên việc con (để hiển thị)
 }
 
 export interface TimerSession {

@@ -37,7 +37,7 @@ import {
 } from 'lucide-react';
 import { format, addDays, subDays, endOfDay } from 'date-fns';
 import { vi } from 'date-fns/locale';
-import type { DailyProgress } from '@/types';
+import type { DailyProgress, Dependency } from '@/types';
 
 const iconMap: Record<string, React.ElementType> = {
   target: () => <span className="text-xl">🎯</span>,
@@ -787,15 +787,29 @@ export function TodayTab() {
 
     // Check if goal has dependencies
     if (goal.dependencies && goal.dependencies.length > 0) {
-      const uncompletedDeps = goal.dependencies.filter(depId => {
-        const depProgress = progressByGoalId.get(depId);
-        return !depProgress?.completed;
+      const uncompletedDeps = goal.dependencies.filter(dep => {
+        if (dep.type === 'goal') {
+          // Check goal completion
+          const depProgress = progressByGoalId.get(dep.sourceGoalId);
+          return !depProgress?.completed;
+        } else if (dep.type === 'checklist_item') {
+          // Check checklist item completion
+          const depProgress = progressByGoalId.get(dep.sourceGoalId);
+          if (!depProgress?.checklist) return true;
+          
+          const checklistItem = depProgress.checklist.find(item => item.id === dep.sourceItemId);
+          return !checklistItem?.done;
+        }
+        return false;
       });
 
       if (uncompletedDeps.length > 0) {
-        const depNames = uncompletedDeps.map(depId => {
-          const depGoal = goals.find(g => g.id === depId);
-          return depGoal?.title || 'Mục tiêu không xác định';
+        const depNames = uncompletedDeps.map(dep => {
+          if (dep.type === 'goal') {
+            return dep.sourceGoalTitle || 'Mục tiêu không xác định';
+          } else {
+            return dep.sourceItemText || 'Việc con không xác định';
+          }
         }).join(', ');
         
         alert(`Không thể hoàn thành mục tiêu này!\n\nCần hoàn thành trước: ${depNames}`);
@@ -996,9 +1010,18 @@ export function TodayTab() {
               const IconComponent = iconMap[goal.icon || 'default'] || iconMap.default;
               
               // Check if goal has uncompleted dependencies
-              const hasUncompletedDeps = goal.dependencies?.some(depId => {
-                const depProgress = progressByGoalId.get(depId);
-                return !depProgress?.completed;
+              const hasUncompletedDeps = goal.dependencies?.some(dep => {
+                if (dep.type === 'goal') {
+                  const depProgress = progressByGoalId.get(dep.sourceGoalId);
+                  return !depProgress?.completed;
+                } else if (dep.type === 'checklist_item') {
+                  const depProgress = progressByGoalId.get(dep.sourceGoalId);
+                  if (!depProgress?.checklist) return true;
+                  
+                  const checklistItem = depProgress.checklist.find(item => item.id === dep.sourceItemId);
+                  return !checklistItem?.done;
+                }
+                return false;
               }) ?? false;
 
               return (
