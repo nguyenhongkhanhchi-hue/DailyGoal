@@ -37,7 +37,7 @@ import {
 } from 'lucide-react';
 import { format, addDays, subDays, endOfDay } from 'date-fns';
 import { vi } from 'date-fns/locale';
-import type { DailyProgress, Dependency } from '@/types';
+import type { DailyProgress } from '@/types';
 
 const iconMap: Record<string, React.ElementType> = {
   target: () => <span className="text-xl">🎯</span>,

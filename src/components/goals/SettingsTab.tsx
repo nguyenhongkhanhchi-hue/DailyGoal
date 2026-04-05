@@ -1,15 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { useGoals } from '@/hooks/useGoals';
 import { useAuth } from '@/contexts/AuthContext';
-import { Plus, Trash2, Edit2, Target, LogOut, DollarSign, Clock, Download, Upload } from 'lucide-react';
+import { Plus, Trash2, Edit2, Target, LogOut } from 'lucide-react';
 import type { Goal, Dependency } from '@/types';
-import { format } from 'date-fns';
 
 interface GoalFormData {
   title: string;
@@ -55,17 +54,6 @@ const iconOptions = [
   { id: 'money2', emoji: '💵' },
 ];
 
-const colorOptions = [
-  { id: '#8b5cf6' },
-  { id: '#ec4899' },
-  { id: '#3b82f6' },
-  { id: '#10b981' },
-  { id: '#f59e0b' },
-  { id: '#ef4444' },
-  { id: '#06b6d4' },
-  { id: '#84cc16' },
-];
-
 const weekDaysOptions = [
   { value: 0, label: 'CN' },
   { value: 1, label: 'T2' },
@@ -80,9 +68,7 @@ export function SettingsTab() {
   const { user, logout } = useAuth();
   const { goals, loading, addGoal, updateGoal, deleteGoal } = useGoals();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [selectedDependencies, setSelectedDependencies] = useState<Dependency[]>([]);
   const [editingGoal, setEditingGoal] = useState<string | null>(null);
-  const [expandedGoalId, setExpandedGoalId] = useState<string | null>(null);
   const [formData, setFormData] = useState<GoalFormData>({
     title: '',
     icon: 'target',
@@ -94,78 +80,12 @@ export function SettingsTab() {
     dependencies: [],
   });
   
-  const [monthlyExpenses, setMonthlyExpenses] = useState<MonthlyExpense[]>([]);
-  const [newExpenseAmount, setNewExpenseAmount] = useState('');
-  const [newExpenseDesc, setNewExpenseDesc] = useState('');
-  
-  useEffect(() => {
-    if (user) {
-      const stored = localStorage.getItem(`dailygoal_monthly_expenses_${user.uid}`);
-      if (stored) {
-        setMonthlyExpenses(JSON.parse(stored));
-      }
-    }
-  }, [user]);
-  
-  useEffect(() => {
-    if (user && monthlyExpenses.length > 0) {
-      localStorage.setItem(`dailygoal_monthly_expenses_${user.uid}`, JSON.stringify(monthlyExpenses));
-    }
-  }, [monthlyExpenses, user]);
-  
-  const currentMonth = format(new Date(), 'yyyy-MM');
-  const currentMonthExpenses = monthlyExpenses.filter(e => e.month === currentMonth);
-  const totalMonthlyExpense = currentMonthExpenses.reduce((sum, e) => sum + e.amount, 0);
-  
-  const secondsInMonth = 30 * 24 * 60 * 60;
-  const costPerSecond = totalMonthlyExpense > 0 ? totalMonthlyExpense / secondsInMonth : 0;
-  
-  useEffect(() => {
-    if (user) {
-      localStorage.setItem(`dailygoal_cost_per_second_${user.uid}`, costPerSecond.toString());
-    }
-  }, [costPerSecond, user]);
-  
-  const addMonthlyExpense = () => {
-    const amount = parseInt(newExpenseAmount.replace(/[^\d]/g, ''), 10);
-    if (isNaN(amount) || amount <= 0 || !newExpenseDesc.trim()) return;
-    
-    const newExpense: MonthlyExpense = {
-      id: `expense_${Date.now()}`,
-      month: currentMonth,
-      amount,
-      description: newExpenseDesc,
-    };
-    
-    setMonthlyExpenses(prev => [...prev, newExpense]);
-    setNewExpenseAmount('');
-    setNewExpenseDesc('');
-  };
-  
-  const removeMonthlyExpense = (id: string) => {
-    setMonthlyExpenses(prev => prev.filter(e => e.id !== id));
-  };
-  
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
-  };
-  
-  const formatNumberInput = (value: string): string => {
-    const num = value.replace(/[^\d]/g, '');
-    if (!num) return '';
-    return parseInt(num, 10).toLocaleString('vi-VN');
-  };
-  
-  const getRandomColor = () => {
-    return colorOptions[Math.floor(Math.random() * colorOptions.length)].id;
-  };
-
   const handleOpenAdd = () => {
     setEditingGoal(null);
     setFormData({
       title: '',
       icon: 'target',
-      color: getRandomColor(),
+      color: '#8b5cf6',
       hasSubtasks: false,
       scheduleType: 'daily',
       specificDate: '',
@@ -188,15 +108,6 @@ export function SettingsTab() {
       dependencies: goal.dependencies || [],
     });
     setIsDialogOpen(true);
-  };
-
-  const toggleWeekDay = (day: number) => {
-    setFormData((prev: GoalFormData) => ({
-      ...prev,
-      weekDays: prev.weekDays.includes(day)
-        ? prev.weekDays.filter((d: number) => d !== day)
-        : [...prev.weekDays, day].sort(),
-    }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -230,52 +141,7 @@ export function SettingsTab() {
   };
 
   // Export all data to JSON file
-  const exportData = () => {
-    const data = {
-      goals: JSON.parse(localStorage.getItem('dailygoal_goals') || '[]'),
-      progress: JSON.parse(localStorage.getItem('dailygoal_progress') || '[]'),
-      exportedAt: new Date().toISOString(),
-      version: '1.0'
-    };
-    
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `dailygoal-backup-${format(new Date(), 'yyyy-MM-dd')}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  };
-
-  // Import data from JSON file
-  const importData = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const data = JSON.parse(e.target?.result as string);
-        
-        if (confirm('Nhập dữ liệu sẽ ghi đè lên dữ liệu hiện tại. Tiếp tục?')) {
-          if (data.goals) {
-            localStorage.setItem('dailygoal_goals', JSON.stringify(data.goals));
-          }
-          if (data.progress) {
-            localStorage.setItem('dailygoal_progress', JSON.stringify(data.progress));
-          }
-          alert('Nhập dữ liệu thành công! Vui lòng tải lại trang.');
-          window.location.reload();
-        }
-      } catch (error) {
-        alert('File không hợp lệ!');
-      }
-    };
-    reader.readAsText(file);
-  };
-
+  
   if (loading) {
     return (
       <div className="space-y-4 pb-20">
@@ -424,104 +290,7 @@ export function SettingsTab() {
         </AnimatePresence>
       )}
 
-      {/* Chi phí thời gian Section */}
-      <Card className="border-0 shadow-lg rounded-xl">
-        <CardContent className="p-4">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="font-semibold flex items-center gap-2">
-              <Clock className="w-5 h-5 text-violet-500" />
-              Chi phí thời gian
-            </h3>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setExpenseDialogOpen(true)}
-            >
-              <DollarSign className="w-4 h-4" />
-            </Button>
-          </div>
-          
-          <div className="space-y-2">
-            <div className="flex justify-between items-center text-sm">
-              <span className="text-gray-500 dark:text-gray-400">Tổng chi tháng này:</span>
-              <span className="font-semibold text-red-600">{formatCurrency(totalMonthlyExpense)}</span>
-            </div>
-            <div className="flex justify-between items-center text-sm">
-              <span className="text-gray-500 dark:text-gray-400">Chi phí mỗi giây:</span>
-              <span className="font-semibold text-violet-600">{costPerSecond.toFixed(2)} VND</span>
-            </div>
-            {currentMonthExpenses.length > 0 && (
-              <div className="mt-2 pt-2 border-t border-gray-100 dark:border-gray-700">
-                <p className="text-xs text-gray-500 mb-1">Các khoản chi:</p>
-                <div className="space-y-1">
-                  {currentMonthExpenses.map(expense => (
-                    <div key={expense.id} className="flex items-center justify-between text-xs">
-                      <span className="truncate flex-1">{expense.description}</span>
-                      <div className="flex items-center gap-1">
-                        <span className="text-red-600">{formatCurrency(expense.amount)}</span>
-                        <button onClick={() => removeMonthlyExpense(expense.id)} className="text-gray-400 hover:text-red-500">
-                          <Trash2 className="w-3 h-3" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Export/Import Data Section */}
-      <Card className="border-0 shadow-lg rounded-xl">
-        <CardContent className="p-4">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="font-semibold flex items-center gap-2">
-              <Download className="w-5 h-5 text-violet-500" />
-              Sao lưu dữ liệu
-            </h3>
-          </div>
-          
-          <div className="space-y-3">
-            <p className="text-xs text-gray-500">
-              Xuất dữ liệu ra file để sao lưu hoặc chuyển sang thiết bị khác
-            </p>
-            
-            <div className="flex gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={exportData}
-                className="flex-1"
-              >
-                <Download className="w-4 h-4 mr-1" />
-                Xuất dữ liệu
-              </Button>
-              
-              <label className="flex-1">
-                <input
-                  type="file"
-                  accept=".json"
-                  onChange={importData}
-                  className="hidden"
-                />
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="w-full"
-                  asChild
-                >
-                  <span>
-                    <Upload className="w-4 h-4 mr-1" />
-                    Nhập dữ liệu
-                  </span>
-                </Button>
-              </label>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
+      
       {/* Add/Edit Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto p-0">
@@ -619,7 +388,15 @@ export function SettingsTab() {
                     <button
                       key={day.value}
                       type="button"
-                      onClick={() => toggleWeekDay(day.value)}
+                      onClick={() => {
+                    const dayValue = day.value;
+                    setFormData(prev => ({
+                      ...prev,
+                      weekDays: prev.weekDays.includes(dayValue)
+                        ? prev.weekDays.filter(d => d !== dayValue)
+                        : [...prev.weekDays, dayValue].sort()
+                    }));
+                  }}
                       className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${
                         formData.weekDays.includes(day.value)
                           ? 'bg-violet-500 text-white shadow'
@@ -797,41 +574,6 @@ export function SettingsTab() {
         </DialogContent>
       </Dialog>
 
-      {/* Expense Dialog */}
-      <Dialog open={expenseDialogOpen} onOpenChange={setExpenseDialogOpen}>
-        <DialogContent className="max-w-sm mx-auto">
-          <DialogHeader>
-            <DialogTitle>Thêm chi phí tháng {format(new Date(), 'MM/yyyy')}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3">
-            <div>
-              <Label className="text-sm">Khoản chi</Label>
-              <Input
-                value={newExpenseDesc}
-                onChange={(e) => setNewExpenseDesc(e.target.value)}
-                placeholder="Ví dụ: Tiền nhà, điện nước..."
-                className="mt-1"
-              />
-            </div>
-            <div>
-              <Label className="text-sm">Số tiền</Label>
-              <Input
-                value={newExpenseAmount}
-                onChange={(e) => setNewExpenseAmount(formatNumberInput(e.target.value))}
-                placeholder="0"
-                className="mt-1"
-              />
-            </div>
-            <Button 
-              className="w-full bg-gradient-to-r from-violet-500 to-fuchsia-500"
-              onClick={addMonthlyExpense}
-              disabled={!newExpenseDesc.trim() || !newExpenseAmount.trim()}
-            >
-              Thêm
-            </Button>
           </div>
-        </DialogContent>
-      </Dialog>
-    </div>
   );
 }
