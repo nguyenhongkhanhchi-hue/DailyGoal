@@ -103,7 +103,7 @@ export function useDailyProgress(date: Date = new Date()) {
     migrateData();
   }, [user, migrated, progress.length]);
 
-  const saveProgress = useCallback(async (newProgress: DailyProgress[]) => {
+  const saveProgress = useCallback(async (_newProgress: DailyProgress[]) => {
     if (!user) return;
     // Firestore realtime subscription sẽ tự cập nhật state
     // Hàm này giữ lại để tương thích với code cũ nếu cần
