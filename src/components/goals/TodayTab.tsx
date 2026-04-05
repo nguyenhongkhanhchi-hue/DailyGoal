@@ -40,6 +40,7 @@ import { vi } from 'date-fns/locale';
 import type { DailyProgress } from '@/types';
 
 const iconMap: Record<string, React.ElementType> = {
+  target: () => <span className="text-xl">🎯</span>,
   droplets: () => <span className="text-xl">💧</span>,
   book: () => <span className="text-xl">📚</span>,
   dumbbell: () => <span className="text-xl">💪</span>,
@@ -48,7 +49,27 @@ const iconMap: Record<string, React.ElementType> = {
   heart: () => <span className="text-xl">❤️</span>,
   star: () => <span className="text-xl">⭐</span>,
   zap: () => <span className="text-xl">⚡</span>,
-  target: () => <span className="text-xl">🎯</span>,
+  run: () => <span className="text-xl">🏃</span>,
+  sleep: () => <span className="text-xl">😴</span>,
+  food: () => <span className="text-xl">🍎</span>,
+  money: () => <span className="text-xl">💰</span>,
+  work: () => <span className="text-xl">💼</span>,
+  code: () => <span className="text-xl">💻</span>,
+  phone: () => <span className="text-xl">📱</span>,
+  music: () => <span className="text-xl">🎵</span>,
+  art: () => <span className="text-xl">🎨</span>,
+  camera: () => <span className="text-xl">📷</span>,
+  plane: () => <span className="text-xl">✈️</span>,
+  home: () => <span className="text-xl">🏠</span>,
+  car: () => <span className="text-xl">🚗</span>,
+  gift: () => <span className="text-xl">🎁</span>,
+  sport: () => <span className="text-xl">⚽</span>,
+  health: () => <span className="text-xl">�</span>,
+  school: () => <span className="text-xl">🏫</span>,
+  coffee: () => <span className="text-xl">☕</span>,
+  plant: () => <span className="text-xl">🌱</span>,
+  fire: () => <span className="text-xl">🔥</span>,
+  money2: () => <span className="text-xl">💵</span>,
   default: () => <span className="text-xl">✨</span>,
 };
 
@@ -973,6 +994,12 @@ export function TodayTab() {
               const isCompleted = checklist.length > 0 ? doneCount === totalCount : Boolean(goalProgress?.completed);
               const isOpen = Boolean(openGoalIds[goal.id]);
               const IconComponent = iconMap[goal.icon || 'default'] || iconMap.default;
+              
+              // Check if goal has uncompleted dependencies
+              const hasUncompletedDeps = goal.dependencies?.some(depId => {
+                const depProgress = progressByGoalId.get(depId);
+                return !depProgress?.completed;
+              }) ?? false;
 
               return (
                 <motion.div
@@ -1054,10 +1081,14 @@ export function TodayTab() {
                           type="button"
                           variant="ghost"
                           size="icon"
-                          onClick={() => handleToggleGoal(goal.id)}
-                          className={`h-7 w-7 ${isCompleted ? 'text-violet-500' : 'text-gray-400'}`}
+                          onClick={() => !hasUncompletedDeps && handleToggleGoal(goal.id)}
+                          disabled={hasUncompletedDeps}
+                          title={hasUncompletedDeps ? 'Cần hoàn thành mục tiêu phụ thuộc trước' : ''}
+                          className={`h-7 w-7 ${isCompleted ? 'text-violet-500' : hasUncompletedDeps ? 'text-gray-300 cursor-not-allowed' : 'text-gray-400'}`}
                         >
-                          {isCompleted ? (
+                          {hasUncompletedDeps ? (
+                            <span className="text-sm">🔒</span>
+                          ) : isCompleted ? (
                             <CheckCircle2 className="w-5 h-5" />
                           ) : (
                             <Circle className="w-5 h-5" />
