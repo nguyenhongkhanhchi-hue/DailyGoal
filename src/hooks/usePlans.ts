@@ -93,16 +93,11 @@ export function usePlans() {
 
   // Save to localStorage whenever data changes
   useEffect(() => {
-    if (plans.length > 0) {
-      localStorage.setItem(getStorageKey('plans'), JSON.stringify(plans));
-    }
-    if (Object.keys(streaks).length > 0) {
-      localStorage.setItem(getStorageKey('streaks'), JSON.stringify(streaks));
-    }
-    if (Object.keys(trainingGoals).length > 0) {
-      localStorage.setItem(getStorageKey('training_goals'), JSON.stringify(trainingGoals));
-    }
-  }, [plans, streaks, trainingGoals, getStorageKey]);
+    if (!user && !guestMode) return;
+    localStorage.setItem(getStorageKey('plans'), JSON.stringify(plans));
+    localStorage.setItem(getStorageKey('streaks'), JSON.stringify(streaks));
+    localStorage.setItem(getStorageKey('training_goals'), JSON.stringify(trainingGoals));
+  }, [plans, streaks, trainingGoals, user, guestMode, getStorageKey]);
 
   // Calculate streak for a goal based on progress
   const calculateStreak = useCallback((goalId: string, progress: DailyProgress[]) => {
