@@ -183,17 +183,15 @@ export function useGoals() {
         ...updates,
         updatedAt: serverTimestamp(),
       }, { merge: true });
-    } else if (guestMode) {
-      // localStorage for guest mode
-      const updatedGoals = goals.map(g => 
-        g.id === goalId ? { ...g, ...updates, updatedAt: new Date() } : g
-      );
-      setGoals(updatedGoals);
-      saveToLocalStorage(updatedGoals);
-    } else {
-      throw new Error('User not authenticated and not in guest mode');
     }
-  }, [user, guestMode, goals, saveToLocalStorage]);
+    
+    // Always save to localStorage as backup
+    const updatedGoals = goals.map(g => 
+      g.id === goalId ? { ...g, ...updates, updatedAt: new Date() } : g
+    );
+    setGoals(updatedGoals);
+    saveToLocalStorage(updatedGoals);
+  }, [user, goals, saveToLocalStorage]);
 
   const deleteGoal = useCallback(async (goalId: string) => {
     if (user) {
@@ -203,17 +201,15 @@ export function useGoals() {
         deletedAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       }, { merge: true });
-    } else if (guestMode) {
-      // localStorage for guest mode - soft delete
-      const updatedGoals = goals.map(g => 
-        g.id === goalId ? { ...g, deletedAt: new Date(), updatedAt: new Date() } : g
-      );
-      setGoals(updatedGoals.filter(g => !g.deletedAt));
-      saveToLocalStorage(updatedGoals);
-    } else {
-      throw new Error('User not authenticated and not in guest mode');
     }
-  }, [user, guestMode, goals, saveToLocalStorage]);
+    
+    // Always save to localStorage as backup - soft delete
+    const updatedGoals = goals.map(g => 
+      g.id === goalId ? { ...g, deletedAt: new Date(), updatedAt: new Date() } : g
+    );
+    setGoals(updatedGoals.filter(g => !g.deletedAt));
+    saveToLocalStorage(updatedGoals);
+  }, [user, goals, saveToLocalStorage]);
 
   return {
     goals,

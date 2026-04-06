@@ -278,14 +278,13 @@ export function usePlans() {
         });
       } catch (error) {
         console.error('Error updating plan:', error);
-        throw error;
       }
-    } else {
-      // Guest mode or local plan
-      setPlans(prev => prev.map(p => 
-        p.id === planId ? { ...p, ...updatedData } as Plan : p
-      ));
     }
+    
+    // Always save to localStorage
+    setPlans(prev => prev.map(p => 
+      p.id === planId ? { ...p, ...updatedData } as Plan : p
+    ));
   }, [plans, user, guestMode]);
 
   // Delete a plan
@@ -301,12 +300,11 @@ export function usePlans() {
         });
       } catch (error) {
         console.error('Error deleting plan:', error);
-        throw error;
       }
-    } else {
-      // Guest mode - actually delete from localStorage
-      setPlans(prev => prev.filter(p => p.id !== planId));
     }
+    
+    // Always remove from state and localStorage
+    setPlans(prev => prev.filter(p => p.id !== planId));
   }, [plans, user, guestMode]);
 
   // Toggle training mode for a plan
