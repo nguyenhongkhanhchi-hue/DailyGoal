@@ -205,43 +205,51 @@ export function useDailyProgress(date: Date = new Date()) {
   }, [dateString, user, loading, progress, saveProgress]);
 
   const upsertProgressForGoalAndDate = useCallback(async (goalId: string, updater: (current: DailyProgress | undefined) => DailyProgress) => {
-    const existing = progress.find(p => p.goalId === goalId && p.date === dateString);
-    const next = updater(existing);
+    console.log('upsertProgressForGoalAndDate called', { goalId, dateString, progressLength: progress.length });
     
-    // Update local state
+    // Use functional update to get the latest progress
     setProgress(prev => {
+      const existing = prev.find(p => p.goalId === goalId && p.date === dateString);
+      const next = updater(existing);
+      console.log('Updating progress', { goalId, existing: !!existing, nextChecklistLength: next.checklist?.length });
+      
       const index = prev.findIndex(p => p.goalId === goalId && p.date === dateString);
+      let updated;
       if (index >= 0) {
-        const updated = [...prev];
+        updated = [...prev];
         updated[index] = next;
-        return updated;
-      }
-      return [...prev, next];
-    });
-    
-    // Always save to localStorage as backup (regardless of auth status)
-    {
-      const savedProgress = localStorage.getItem(getStorageKey());
-      const parsed = savedProgress ? JSON.parse(savedProgress) : [];
-      const index = parsed.findIndex((p: DailyProgress) => p.goalId === goalId && p.date === dateString);
-      if (index >= 0) {
-        parsed[index] = next;
       } else {
-        parsed.push(next);
+        updated = [...prev, next];
       }
-      localStorage.setItem(getStorageKey(), JSON.stringify(parsed));
-    }
-    
-    // Save to Firestore if authenticated (and not guest mode)
-    if (user && !guestMode) {
-      const progressRef = doc(db, 'progress', next.id);
-      await setDoc(progressRef, {
-        ...next,
-        userId: user.uid,
-        updatedAt: serverTimestamp(),
-      });
-    }
-  }, [dateString, progress, user, guestMode, getStorageKey]);
+      
+      // Always save to localStorage as backup
+      {
+        const storageKey = `${LEGACY_STORAGE_KEY}_${userId}`;
+        const savedProgress = localStorage.getItem(storageKey);
+        const parsed = savedProgress ? JSON.parse(savedProgress) : [];
+        const lsIndex = parsed.findIndex((p: DailyProgress) => p.goalId === goalId && p.date === dateString);
+        if (lsIndex >= 0) {
+          parsed[lsIndex] = next;
+        } else {
+          parsed.push(next);
+        }
+        localStorage.setItem(storageKey, JSON.stringify(parsed));
+        console.log('Saved to localStorage', { key: storageKey, checklistLength: next.checklist?.length });
+      }
+      
+      // Save to Firestore if authenticated
+      if (user && !guestMode) {
+        const progressRef = doc(db, 'progress', next.id);
+        setDoc(progressRef, {
+          ...next,
+          userId: user.uid,
+          updatedAt: serverTimestamp(),
+        }).catch(err => console.error('Firestore save error:', err));
+      }
+      
+      return updated;
+    });
+  }, [dateString, user, guestMode, userId]);
 
   const computeCompletionFromChecklist = (checklist: ChecklistItem[] | undefined) => {
     if (!checklist || checklist.length === 0) return { completed: false, completedAt: undefined as Date | undefined };

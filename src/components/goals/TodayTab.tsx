@@ -1216,7 +1216,7 @@ export function TodayTab() {
                                       <div className="grid grid-cols-4 gap-2">
                                         <button 
                                           onClick={(e) => { e.stopPropagation(); startTimer(goal.id, checklistIndex); }} 
-                                          disabled={data.timerRunning} 
+                                          disabled={data.timerRunning || item.done} 
                                           className="flex flex-col items-center gap-1 p-2.5 rounded-xl bg-white dark:bg-gray-800 shadow-md border border-gray-100 dark:border-gray-700 hover:shadow-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed active:scale-95"
                                         >
                                           <Play className="w-4 h-4 text-green-500" />
@@ -1224,7 +1224,7 @@ export function TodayTab() {
                                         </button>
                                         <button 
                                           onClick={(e) => { e.stopPropagation(); pauseTimer(goal.id, checklistIndex); }} 
-                                          disabled={!data.timerRunning} 
+                                          disabled={!data.timerRunning || item.done} 
                                           className="flex flex-col items-center gap-1 p-2.5 rounded-xl bg-white dark:bg-gray-800 shadow-md border border-gray-100 dark:border-gray-700 hover:shadow-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed active:scale-95"
                                         >
                                           <Pause className="w-4 h-4 text-yellow-500" />
@@ -1232,7 +1232,7 @@ export function TodayTab() {
                                         </button>
                                         <button 
                                           onClick={(e) => { e.stopPropagation(); resumeTimer(goal.id, checklistIndex); }} 
-                                          disabled={data.timerRunning || !data.pauseTime} 
+                                          disabled={data.timerRunning || !data.pauseTime || item.done} 
                                           className="flex flex-col items-center gap-1 p-2.5 rounded-xl bg-white dark:bg-gray-800 shadow-md border border-gray-100 dark:border-gray-700 hover:shadow-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed active:scale-95"
                                         >
                                           <PlayCircle className="w-4 h-4 text-blue-500" />
@@ -1240,7 +1240,7 @@ export function TodayTab() {
                                         </button>
                                         <button 
                                           onClick={(e) => { e.stopPropagation(); stopTimer(goal.id, checklistIndex); }} 
-                                          disabled={!data.timerRunning && data.timerElapsedWhenPaused === 0} 
+                                          disabled={(!data.timerRunning && data.timerElapsedWhenPaused === 0) || item.done} 
                                           className="flex flex-col items-center gap-1 p-2.5 rounded-xl bg-white dark:bg-gray-800 shadow-md border border-gray-100 dark:border-gray-700 hover:shadow-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed active:scale-95"
                                         >
                                           <Square className="w-4 h-4 text-red-500" />
@@ -1342,6 +1342,7 @@ export function TodayTab() {
                                             value={editItemText}
                                             onChange={(e) => setEditItemText(e.target.value)}
                                             className="h-9 text-sm"
+                                            disabled={item.done}
                                             autoFocus
                                             onKeyDown={(e) => {
                                               if (e.key === 'Enter') {
@@ -1390,7 +1391,8 @@ export function TodayTab() {
                                                 setEditingItemId(item.id);
                                                 setEditItemText(item.text);
                                               }}
-                                              className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium text-violet-600 bg-white dark:bg-gray-800 rounded-xl border border-violet-200 dark:border-violet-800 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-colors shadow-sm hover:shadow-md active:scale-95"
+                                              disabled={item.done}
+                                              className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium text-violet-600 bg-white dark:bg-gray-800 rounded-xl border border-violet-200 dark:border-violet-800 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-colors shadow-sm hover:shadow-md active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
                                             >
                                               <Edit2 className="w-3.5 h-3.5" />
                                               Sửa tên
@@ -1402,7 +1404,8 @@ export function TodayTab() {
                                                   removeChecklistItem(goal.id, item.id);
                                                 }
                                               }}
-                                              className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium text-red-500 bg-white dark:bg-gray-800 rounded-xl border border-red-200 dark:border-red-800 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors shadow-sm hover:shadow-md active:scale-95"
+                                              disabled={item.done}
+                                              className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium text-red-500 bg-white dark:bg-gray-800 rounded-xl border border-red-200 dark:border-red-800 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors shadow-sm hover:shadow-md active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
                                             >
                                               <Trash2 className="w-3.5 h-3.5" />
                                               Xóa
@@ -1419,6 +1422,7 @@ export function TodayTab() {
                                               <Input
                                                 type="date"
                                                 value={item.deadline || ''}
+                                                disabled={item.done}
                                                 onChange={(e) => {
                                                   e.stopPropagation();
                                                   updateChecklistItemDeadline(goal.id, item.id, e.target.value || undefined);
@@ -1435,6 +1439,7 @@ export function TodayTab() {
                                               <Input
                                                 type="time"
                                                 value={item.reminderTime || ''}
+                                                disabled={item.done}
                                                 onChange={(e) => {
                                                   e.stopPropagation();
                                                   updateChecklistItemReminder(goal.id, item.id, e.target.value || undefined);
