@@ -21,7 +21,6 @@ export function useDailyProgress(date: Date = new Date()) {
   const [progress, setProgress] = useState<DailyProgress[]>([]);
   const [loading, setLoading] = useState(true);
   const [migrated, setMigrated] = useState(false);
-  const [localStorageLoaded, setLocalStorageLoaded] = useState(false);
 
   const dateString = format(date, 'yyyy-MM-dd');
   const userId = user?.uid || 'guest_user';
@@ -43,7 +42,6 @@ export function useDailyProgress(date: Date = new Date()) {
       }
     }
     setLoading(false);
-    setLocalStorageLoaded(true);
   }, [getStorageKey]);
 
   const createChecklistItemId = () => {
