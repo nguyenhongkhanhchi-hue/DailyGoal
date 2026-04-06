@@ -136,7 +136,6 @@ export function useGoals() {
     };
 
     if (user) {
-      // Firestore for logged in users
       try {
         const newGoalRef = doc(collection(db, 'goals'));
         await setDoc(newGoalRef, {
@@ -151,18 +150,15 @@ export function useGoals() {
         console.log('Goal saved to Firestore:', newGoalRef.id);
       } catch (err) {
         console.error('Firestore error:', err);
-        throw err;
       }
-    } else if (guestMode) {
-      // localStorage for guest mode
-      const updatedGoals = [...goals, newGoal];
-      setGoals(updatedGoals);
-      saveToLocalStorage(updatedGoals);
-      console.log('Goal saved to localStorage:', newGoal.id);
-    } else {
-      throw new Error('User not authenticated and not in guest mode');
     }
-  }, [user, guestMode, effectiveUserId, goals, saveToLocalStorage]);
+    
+    // Always save to localStorage as backup
+    const updatedGoals = [...goals, newGoal];
+    setGoals(updatedGoals);
+    saveToLocalStorage(updatedGoals);
+    console.log('Goal saved to localStorage:', newGoal.id);
+  }, [user, effectiveUserId, goals, saveToLocalStorage]);
 
   const updateGoal = useCallback(async (goalId: string, updates: Partial<Goal>) => {
     if (user) {

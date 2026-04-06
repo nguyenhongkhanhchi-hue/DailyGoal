@@ -25,14 +25,15 @@ export function useDailyProgress(date: Date = new Date()) {
   const dateString = format(date, 'yyyy-MM-dd');
   const userId = user?.uid || 'guest_user';
   
-  // Get localStorage key for guest mode
+  // Get localStorage key - stable key that doesn't change
   const getStorageKey = useCallback(() => {
     return `${LEGACY_STORAGE_KEY}_${userId}`;
   }, [userId]);
 
-  // Load from localStorage - always try to load first as backup
+  // Load from localStorage - only run once on mount
   useEffect(() => {
-    const savedProgress = localStorage.getItem(getStorageKey());
+    const storageKey = `${LEGACY_STORAGE_KEY}_${userId}`;
+    const savedProgress = localStorage.getItem(storageKey);
     if (savedProgress) {
       try {
         const parsed = JSON.parse(savedProgress);
@@ -42,7 +43,7 @@ export function useDailyProgress(date: Date = new Date()) {
       }
     }
     setLoading(false);
-  }, [getStorageKey]);
+  }, []); // Empty deps - only run once
 
   const createChecklistItemId = () => {
     if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return crypto.randomUUID();

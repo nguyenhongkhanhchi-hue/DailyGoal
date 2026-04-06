@@ -242,17 +242,15 @@ export function usePlans() {
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
         });
-        return docRef.id;
       } catch (error) {
         console.error('Error adding plan:', error);
-        throw error;
       }
-    } else {
-      // Guest mode - localStorage only
-      const newPlan = { ...planData, id: `plan_${Date.now()}`, deletedAt: undefined };
-      setPlans(prev => [newPlan as Plan, ...prev]);
-      return newPlan.id;
     }
+    
+    // Always save to localStorage
+    const newPlan = { ...planData, id: `plan_${Date.now()}`, deletedAt: undefined };
+    setPlans(prev => [newPlan as Plan, ...prev]);
+    return newPlan.id;
   }, [user, guestMode]);
 
   // Update a plan
