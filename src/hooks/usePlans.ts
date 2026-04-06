@@ -17,51 +17,47 @@ export function usePlans() {
     return `dailygoal_${type}_${userId}`;
   }, [user]);
 
-  // Load from localStorage (guest mode)
+  // Load from localStorage - always try to load first
   useEffect(() => {
-    if (user || guestMode) {
-      const savedPlans = localStorage.getItem(getStorageKey('plans'));
-      const savedStreaks = localStorage.getItem(getStorageKey('streaks'));
-      const savedTrainingGoals = localStorage.getItem(getStorageKey('training_goals'));
-      
-      if (savedPlans) {
-        try {
-          const parsed = JSON.parse(savedPlans);
-          setPlans(parsed.map((p: Plan) => ({
-            ...p,
-            createdAt: new Date(p.createdAt),
-            updatedAt: new Date(p.updatedAt),
-            deletedAt: p.deletedAt ? new Date(p.deletedAt) : undefined,
-          })));
-        } catch (e) {
-          console.error('Failed to parse plans', e);
-        }
-      }
-      
-      if (savedStreaks) {
-        try {
-          setStreaks(JSON.parse(savedStreaks));
-        } catch (e) {
-          console.error('Failed to parse streaks', e);
-        }
-      }
-      
-      if (savedTrainingGoals) {
-        try {
-          setTrainingGoals(JSON.parse(savedTrainingGoals));
-        } catch (e) {
-          console.error('Failed to parse training goals', e);
-        }
+    const savedPlans = localStorage.getItem(getStorageKey('plans'));
+    const savedStreaks = localStorage.getItem(getStorageKey('streaks'));
+    const savedTrainingGoals = localStorage.getItem(getStorageKey('training_goals'));
+    
+    if (savedPlans) {
+      try {
+        const parsed = JSON.parse(savedPlans);
+        setPlans(parsed.map((p: Plan) => ({
+          ...p,
+          createdAt: new Date(p.createdAt),
+          updatedAt: new Date(p.updatedAt),
+          deletedAt: p.deletedAt ? new Date(p.deletedAt) : undefined,
+        })));
+      } catch (e) {
+        console.error('Failed to parse plans', e);
       }
     }
-  }, [user, guestMode, getStorageKey]);
+    
+    if (savedStreaks) {
+      try {
+        setStreaks(JSON.parse(savedStreaks));
+      } catch (e) {
+        console.error('Failed to parse streaks', e);
+      }
+    }
+    
+    if (savedTrainingGoals) {
+      try {
+        setTrainingGoals(JSON.parse(savedTrainingGoals));
+      } catch (e) {
+        console.error('Failed to parse training goals', e);
+      }
+    }
+    setLoading(false);
+  }, [getStorageKey]);
 
-  // Subscribe to Firestore (authenticated mode)
+  // Subscribe to Firestore (as supplement, not replacement)
   useEffect(() => {
-    if (!user || guestMode) {
-      setLoading(false);
-      return;
-    }
+    if (!user || guestMode) return;
 
     const q = query(
       collection(db, 'plans'),

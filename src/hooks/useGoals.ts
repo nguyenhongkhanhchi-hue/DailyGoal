@@ -24,13 +24,28 @@ export function useGoals() {
 
   const effectiveUserId = user?.uid || (guestMode ? GUEST_USER_ID : null);
 
-  // Subscribe to Firestore goals (for logged in users)
+  // Load from localStorage - always try to load first as backup
   useEffect(() => {
-    if (!user) {
+    const storageKey = `${LEGACY_STORAGE_KEY}_${GUEST_USER_ID}`;
+    const savedGoals = localStorage.getItem(storageKey) ?? localStorage.getItem(LEGACY_STORAGE_KEY);
+    
+    if (savedGoals) {
+      try {
+        const parsed = JSON.parse(savedGoals);
+        const activeGoals = parsed.filter((g: Goal) => !g.deletedAt);
+        setGoals(activeGoals);
+      } catch {
+        setGoals([]);
+      }
+    } else {
       setGoals([]);
-      setLoading(false);
-      return;
     }
+    setLoading(false);
+  }, []);
+
+  // Subscribe to Firestore goals (for logged in users, as supplement)
+  useEffect(() => {
+    if (!user) return;
 
     setLoading(true);
     const q = query(
@@ -52,41 +67,15 @@ export function useGoals() {
           deletedAt: data.deletedAt?.toDate() || undefined,
         } as Goal);
       });
-      setGoals(goalsData);
+      // Merge Firestore data with localStorage data
+      if (goalsData.length > 0) {
+        setGoals(goalsData);
+      }
       setLoading(false);
     });
 
     return () => unsubscribe();
   }, [user]);
-
-  // Load from localStorage (for guest mode)
-  useEffect(() => {
-    if (user) return; // If logged in, Firestore handles it
-    if (!guestMode) {
-      setGoals([]);
-      setLoading(false);
-      return;
-    }
-
-    // Guest mode - load from localStorage
-    setLoading(true);
-    const savedGoals = localStorage.getItem(`${LEGACY_STORAGE_KEY}_${GUEST_USER_ID}`) ?? 
-                      localStorage.getItem(LEGACY_STORAGE_KEY);
-    
-    if (savedGoals) {
-      try {
-        const parsed = JSON.parse(savedGoals);
-        // Filter out deleted goals
-        const activeGoals = parsed.filter((g: Goal) => !g.deletedAt);
-        setGoals(activeGoals);
-      } catch {
-        setGoals([]);
-      }
-    } else {
-      setGoals([]);
-    }
-    setLoading(false);
-  }, [user, guestMode]);
 
   // Migration from localStorage
   useEffect(() => {
